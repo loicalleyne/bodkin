@@ -1,2 +1,114 @@
-# bodkin
-Go library for decoding generic map values and native Go structures into Arrow.
+# Bodkin
+Go library for decoding generic map values and native Go structures to Apache Arrow.
+
+## Features
+
+- Convert a structured input (json string or []byte, Go struct or map[string]any) into an Apache Arrow schema
+- Evolve the schema with new fields by providing new inputs
+- Convert schema field types when to accept evolving input schemas
+- Track the changes to the schema
+
+## 🚀 Install
+
+Using Bodkin is easy. First, use `go get` to install the latest version
+of the library.
+
+```sh
+go get -u github.com/loicalleyne/bodkin@latest
+```
+
+## 💡 Usage
+
+You can import `bodkin` using:
+
+```go
+import "github.com/loicalleyne/bodkin"
+```
+
+Create a new Bodkin, providing some structured data and print out the resulting Arrow Schema's string representation and field evaluation errors
+```go
+var jsonS1 string = `{
+    "count": 89,
+    "next": "https://sub.domain.com/api/search/?models=thurblig&page=3",
+    "previous": null,
+    "results": [{"id":7594}],
+    "arrayscalar":[],
+    "datefield":"1979-01-01",
+    "timefield":"01:02:03"
+    }`
+u, _ := bodkin.NewBodkin(jsonS1, bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
+s, err := u.OriginSchema()
+fmt.Printf("original input %v\nerrors:\n%v\n", s.String(), err)
+// original input schema:
+//   fields: 5
+//     - results: type=list<item: struct<id: float64>, nullable>, nullable
+//     - datefield: type=date32, nullable
+//     - timefield: type=time64[ns], nullable
+//     - count: type=float64, nullable
+//     - next: type=utf8, nullable
+// errors:
+// could not determine type of unpopulated field : [previous]
+// could not determine element type of empty array : [arrayscalar]
+// could not determine type of unpopulated field : [previous]
+// could not determine element type of empty array : [arrayscalar]
+```
+
+Provide some more structured data and print out the new merged schema and the list of changes
+```go
+var jsonS2 string = `{
+"count": 89.5,
+"next": "https://sub.domain.com/api/search/?models=thurblig&page=3",
+"previous": "https://sub.domain.com/api/search/?models=thurblig&page=2",
+"results": [{"id":7594,"scalar":241.5,"nestedObj":{"strscalar":"str1","nestedarray":[123,456]}}],
+"arrayscalar":["str"],
+"datetime":"2024-10-24 19:03:09",
+"event_time":"2024-10-24T19:03:09+00:00",
+"datefield":"2024-10-24T19:03:09+00:00",
+"timefield":"1970-01-01"
+}`
+u.Unify(jsonS2)
+schema, _ := u.Schema()
+fmt.Printf("\nunified %v\n", schema.String())
+fmt.Println(u.Changes())
+// unified schema:
+//   fields: 9
+//     - count: type=float64, nullable
+//     - next: type=utf8, nullable
+//     - results: type=list<item: struct<id: float64, scalar: float64, nested: struct<strscalar: utf8, nestedarray: list<item: float64, nullable>>>, nullable>, nullable
+//     - datefield: type=timestamp[ms, tz=UTC], nullable
+//     - timefield: type=utf8, nullable
+//     - previous: type=utf8, nullable
+//     - datetime: type=timestamp[ms, tz=UTC], nullable
+//     - arrayscalar: type=list<item: utf8, nullable>, nullable
+//     - event_time: type=timestamp[ms, tz=UTC], nullable
+// changes:
+// added $previous : utf8
+// added $datetime : timestamp[ms, tz=UTC]
+// changed $datefield : from date32 to timestamp[ms, tz=UTC]
+// added $results.results.elem.scalar : float64
+// added $results.results.elem.nested : struct<strscalar: utf8, nestedarray: list<item: float64, nullable>>
+// added $arrayscalar : list<item: utf8, nullable>
+// added $event_time : timestamp[ms, tz=UTC]
+// changed $timefield : from time64[ns] to utf8
+```
+
+Use the generated Arrow schema with Arrow's built-in JSON reader to decode JSON data into Arrow records
+```go
+rdr = array.NewJSONReader(strings.NewReader(jsonS2), schema)
+defer rdr.Release()
+for rdr.Next() {
+    rec := rdr.Record()
+    rj, _ := rec.MarshalJSON()
+    fmt.Printf("\nmarshaled record:\n%v\n", string(rj))
+}
+// marshaled record:
+// [{"arrayscalar":["str"],"count":89.5,"datefield":"2024-10-24 19:03:09Z","datetime":"2024-10-24 19:03:09Z","event_time":"2024-10-24 19:03:09Z","next":"https://sub.domain.com/api/search/?models=thurblig\u0026page=3","previous":"https://sub.domain.com/api/search/?models=thurblig\u0026page=2","results":[{"id":7594,"nested":{"nestedarray":[123,456],"strscalar":"str1"},"scalar":241.5}],"timefield":"1970-01-01"}
+// ]
+```
+## 💫 Show your support
+
+Give a ⭐️ if this project helped you!
+
+## License
+
+Bodkin is released under the Apache 2.0 license. See [LICENCE.txt](LICENCE.txt)
