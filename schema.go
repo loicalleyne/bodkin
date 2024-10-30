@@ -44,14 +44,19 @@ var UpgradableTypes []arrow.Type = []arrow.Type{arrow.INT8,
 	arrow.STRING,
 }
 
+// Regular expressions and variables for type inference.
 var (
 	timestampMatchers []*regexp.Regexp
 	dateMatcher       *regexp.Regexp
 	timeMatcher       *regexp.Regexp
+	integerMatcher    *regexp.Regexp
+	floatMatcher      *regexp.Regexp
+	boolMatcher       []string
 )
 
 func init() {
 	registerTsMatchers()
+	registerQuotedStringValueMatchers()
 }
 
 func registerTsMatchers() {
@@ -62,6 +67,12 @@ func registerTsMatchers() {
 		regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$`), // RFC 3339 with space instead of T
 		regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`),                            // Datetime format with dashes
 		regexp.MustCompile(`^\d{4}-\d{1,2}-\d{1,2}[T ]\d{1,2}:\d{1,2}:\d{1,2}(\.\d{1,6})? *(([+-]\d{1,2}(:\d{1,2})?)|Z|UTC)?$`))
+}
+
+func registerQuotedStringValueMatchers() {
+	integerMatcher = regexp.MustCompile(`^[-+]?\d+$`)
+	floatMatcher = regexp.MustCompile(`^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$`)
+	boolMatcher = append(boolMatcher, "true", "false")
 }
 
 func newFieldPos(b *Bodkin) *fieldPos {
@@ -350,6 +361,17 @@ func goType2Arrow(f *fieldPos, gt any) arrow.DataType {
 			}
 			if timeMatcher.MatchString(t) {
 				return arrow.FixedWidthTypes.Time64ns
+			}
+		}
+		if !f.owner.quotedValuesAreStrings {
+			if slices.Contains(boolMatcher, t) {
+				return arrow.FixedWidthTypes.Boolean
+			}
+			if integerMatcher.MatchString(t) {
+				return arrow.PrimitiveTypes.Int64
+			}
+			if floatMatcher.MatchString(t) {
+				return arrow.PrimitiveTypes.Float64
 			}
 		}
 		dt = arrow.BinaryTypes.String

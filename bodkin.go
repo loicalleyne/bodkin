@@ -19,13 +19,14 @@ type (
 
 // Bodkin is a collection of field paths, describing the columns of a structured input(s).
 type Bodkin struct {
-	original       *fieldPos
-	old            *fieldPos
-	new            *fieldPos
-	inferTimeUnits bool
-	typeConversion bool
-	err            error
-	changes        error
+	original               *fieldPos
+	old                    *fieldPos
+	new                    *fieldPos
+	inferTimeUnits         bool
+	quotedValuesAreStrings bool
+	typeConversion         bool
+	err                    error
+	changes                error
 }
 
 // NewBodkin returns a new Bodkin value from a structured input.
@@ -103,6 +104,13 @@ func WithInferTimeUnits() Option {
 func WithTypeConversion() Option {
 	return func(cfg config) {
 		cfg.typeConversion = true
+	}
+}
+
+// WithTypeConversion enables upgrading the column types to fix compatibilty conflicts.
+func WithQuotedValuesAreStrings() Option {
+	return func(cfg config) {
+		cfg.quotedValuesAreStrings = true
 	}
 }
 

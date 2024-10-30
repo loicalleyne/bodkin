@@ -104,7 +104,8 @@ var jsonS1 string = `{
 	"results": [{"id":7594}],
 	"arrayscalar":[],
 	"datefield":"1979-01-01",
-	"timefield":"01:02:03"
+	"timefield":"01:02:03",
+	"boolquotedfield":"true"
 	}`
 
 var jsonS2 string = `{
