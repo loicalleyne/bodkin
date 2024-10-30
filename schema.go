@@ -22,6 +22,7 @@ type fieldPos struct {
 	err          error
 }
 
+// Schema evaluation/evolution errors.
 var (
 	ErrUndefinedInput            = errors.New("nil input")
 	ErrInvalidInput              = errors.New("invalid input")
@@ -30,19 +31,23 @@ var (
 	ErrUndefinedArrayElementType = errors.New("could not determine element type of empty array")
 	ErrNotAnUpgradableType       = errors.New("is not an upgradable type")
 	ErrPathNotFound              = errors.New("path not found")
-	timestampMatchers            []*regexp.Regexp
-	dateMatcher                  *regexp.Regexp
-	timeMatcher                  *regexp.Regexp
-	// UpgradableTypes are scalar types that can be upgraded to a more flexible type.
-	UpgradableTypes []arrow.Type = []arrow.Type{arrow.INT8,
-		arrow.INT16,
-		arrow.INT32,
-		arrow.INT64,
-		arrow.DATE32,
-		arrow.TIME64,
-		arrow.TIMESTAMP,
-		arrow.STRING,
-	}
+)
+
+// UpgradableTypes are scalar types that can be upgraded to a more flexible type.
+var UpgradableTypes []arrow.Type = []arrow.Type{arrow.INT8,
+	arrow.INT16,
+	arrow.INT32,
+	arrow.INT64,
+	arrow.DATE32,
+	arrow.TIME64,
+	arrow.TIMESTAMP,
+	arrow.STRING,
+}
+
+var (
+	timestampMatchers []*regexp.Regexp
+	dateMatcher       *regexp.Regexp
+	timeMatcher       *regexp.Regexp
 )
 
 func init() {
@@ -104,6 +109,7 @@ func (f *fieldPos) mapChildren() {
 	}
 }
 
+// getPath returns a field found at a defined path, otherwise returns ErrPathNotFound.
 func (f *fieldPos) getPath(path []string) (*fieldPos, error) {
 	if len(path) == 0 { // degenerate input
 		return nil, fmt.Errorf("getPath needs at least one key")
@@ -143,12 +149,12 @@ func (f *fieldPos) dotPath() string {
 	return path
 }
 
-// getValue retrieves the value from the map[string]interface{}
+// getValue retrieves the value from the map[string]any
 // by following the field's key path
-func (f *fieldPos) getValue(m map[string]interface{}) interface{} {
-	var value interface{} = m
+func (f *fieldPos) getValue(m map[string]any) any {
+	var value any = m
 	for _, key := range f.namePath() {
-		valueMap, ok := value.(map[string]interface{})
+		valueMap, ok := value.(map[string]any)
 		if !ok {
 			return nil
 		}
@@ -221,11 +227,13 @@ func errWrap(f *fieldPos) error {
 	return err
 }
 
-func mapToArrow(f *fieldPos, m map[string]interface{}) {
+// mapToArrow traverses a map[string]any and creates a fieldPos tree from
+// which an Arrow schema can be generated.
+func mapToArrow(f *fieldPos, m map[string]any) {
 	for k, v := range m {
 		child := f.newChild(k)
 		switch t := v.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			mapToArrow(child, t)
 			var fields []arrow.Field
 			for _, c := range child.children {
@@ -236,7 +244,7 @@ func mapToArrow(f *fieldPos, m map[string]interface{}) {
 				f.assignChild(child)
 			}
 
-		case []interface{}:
+		case []any:
 			if len(t) <= 0 {
 				f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedArrayElementType, child.namePath()))
 			} else {
@@ -258,9 +266,11 @@ func mapToArrow(f *fieldPos, m map[string]interface{}) {
 	f.field = arrow.Field{Name: f.name, Type: arrow.StructOf(fields...), Nullable: true}
 }
 
-func sliceElemType(f *fieldPos, v []interface{}) arrow.DataType {
+// sliceElemType evaluates the slice type and returns an Arrow DataType
+// to be used in building an Arrow Field.
+func sliceElemType(f *fieldPos, v []any) arrow.DataType {
 	switch ft := v[0].(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		child := f.newChild(f.name + ".elem")
 		mapToArrow(child, ft)
 		var fields []arrow.Field
@@ -269,13 +279,13 @@ func sliceElemType(f *fieldPos, v []interface{}) arrow.DataType {
 		}
 		f.assignChild(child)
 		return arrow.StructOf(fields...)
-	case []interface{}:
+	case []any:
 		if len(ft) < 1 {
 			f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedArrayElementType, f.namePath()))
 			return arrow.GetExtensionType("skip")
 		}
 		child := f.newChild(f.name + ".elem")
-		et := sliceElemType(child, v[0].([]interface{}))
+		et := sliceElemType(child, v[0].([]any))
 		f.assignChild(child)
 		return arrow.ListOf(et)
 	default:
@@ -284,6 +294,7 @@ func sliceElemType(f *fieldPos, v []interface{}) arrow.DataType {
 	return nil
 }
 
+// goType2Arrow maps a Go type to an Arrow DataType.
 func goType2Arrow(f *fieldPos, gt any) arrow.DataType {
 	var dt arrow.DataType
 	switch t := gt.(type) {

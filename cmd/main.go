@@ -8,7 +8,45 @@ import (
 	"github.com/loicalleyne/bodkin"
 )
 
+type AddressType struct {
+	Street  string
+	City    string
+	Region  string
+	Country string
+}
+type School struct {
+	Name    string
+	Address AddressType
+}
+
+type Student struct {
+	Name string
+	Age  int32
+	ID   int64
+	Day  int32
+	School
+}
+
 func main() {
+	stu := Student{
+		Name: "StudentName",
+		Age:  25,
+		ID:   123456,
+		Day:  123,
+	}
+	sch := School{
+		Name: "SchoolName",
+		Address: AddressType{
+			Country: "CountryName",
+		},
+	}
+	e, _ := bodkin.NewBodkin(stu, bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
+	sc, err := e.OriginSchema()
+	fmt.Printf("original input %v\nerrors:\n%v\n", sc.String(), err)
+	e.Unify(sch)
+	sc, err = e.OriginSchema()
+	fmt.Printf("unified %v\nerrors:\n%v\n\n", sc.String(), err)
+
 	u, _ := bodkin.NewBodkin(jsonS1, bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
 	s, err := u.OriginSchema()
 	fmt.Printf("original input %v\nerrors:\n%v\n", s.String(), err)

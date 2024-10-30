@@ -1,12 +1,15 @@
 # Bodkin
-Go library for decoding generic map values and native Go structures to Apache Arrow.
+Go library for generating schemas and decoding generic map values and native Go structures to Apache Arrow. 
+
+The goal is to provide a useful toolkit to make it easier to use Arrow, and by extension Parquet.
 
 ## Features
 
-- Convert a structured input (json string or []byte, Go struct or map[string]any) into an Apache Arrow schema
-- Evolve the schema with new fields by providing new inputs
-- Convert schema field types when to accept evolving input schemas
-- Track the changes to the schema
+- Converts a structured input (json string or []byte, Go struct or map[string]any) into an Apache Arrow schema
+- Supports nested types
+- Automatically evolves the Arrow schema with new fields when providing new inputs
+- Converts schema field types when unifying schemas to accept evolving input data
+- Tracks changes to the schema
 
 ## 🚀 Install
 
@@ -49,8 +52,6 @@ fmt.Printf("original input %v\nerrors:\n%v\n", s.String(), err)
 // errors:
 // could not determine type of unpopulated field : [previous]
 // could not determine element type of empty array : [arrayscalar]
-// could not determine type of unpopulated field : [previous]
-// could not determine element type of empty array : [arrayscalar]
 ```
 
 Provide some more structured data and print out the new merged schema and the list of changes
@@ -90,6 +91,46 @@ fmt.Println(u.Changes())
 // added $arrayscalar : list<item: utf8, nullable>
 // added $event_time : timestamp[ms, tz=UTC]
 // changed $timefield : from time64[ns] to utf8
+```
+
+Also works with Go structs
+```go
+	stu := Student{
+		Name: "StudentName",
+		Age:  25,
+		ID:   123456,
+		Day:  123,
+	}
+	sch := School{
+		Name: "SchoolName",
+		Address: AddressType{
+			Country: "CountryName",
+		},
+	}
+	e, _ := bodkin.NewBodkin(stu, bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
+	sc, err := e.OriginSchema()
+	fmt.Printf("original input %v\nerrors:\n%v\n", sc.String(), err)
+// original input schema:
+//   fields: 5
+//     - ID: type=int64, nullable
+//     - Day: type=int32, nullable
+//     - School: type=struct<Name: utf8, Address: struct<Street: utf8, City: utf8, Region: utf8, Country: utf8>>, nullable
+//     - Name: type=utf8, nullable
+//     - Age: type=int32, nullable
+// errors:
+// <nil>
+	e.Unify(sch)
+	sc, err = e.OriginSchema()
+	fmt.Printf("unified %v\nerrors:\n%v\n", sc.String(), err)
+// unified schema:
+//   fields: 5
+//     - ID: type=int64, nullable
+//     - Day: type=int32, nullable
+//     - School: type=struct<Name: utf8, Address: struct<Street: utf8, City: utf8, Region: utf8, Country: utf8>>, nullable
+//     - Name: type=utf8, nullable
+//     - Age: type=int32, nullable
+// errors:
+// <nil>
 ```
 
 Use the generated Arrow schema with Arrow's built-in JSON reader to decode JSON data into Arrow records

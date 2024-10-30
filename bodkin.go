@@ -1,3 +1,5 @@
+// Package bodkin is a Go library for generating schemas and decoding generic map values and native Go structures to Apache Arrow.
+// The goal is to provide a useful toolkit to make it easier to use Arrow, and by extension Parquet.
 package bodkin
 
 import (
@@ -9,6 +11,7 @@ import (
 	"github.com/goccy/go-json"
 )
 
+// Option configures a Bodkin
 type (
 	Option func(config)
 	config *Bodkin
@@ -26,8 +29,8 @@ type Bodkin struct {
 }
 
 // NewBodkin returns a new Bodkin value from a structured input.
-// Input must be a json byte slice or string, a struct with exported fields or map[string]any.
-// Any uppopulated fields, empty objects or empty slices in the input are skipped as their
+// Input must be a json byte slice or string, a Go struct with exported fields or map[string]any.
+// Any uppopulated fields, empty objects or empty slices in JSON or map[string]any inputs are skipped as their
 // types cannot be evaluated and converted.
 func NewBodkin(a any, opts ...Option) (*Bodkin, error) {
 	m := map[string]interface{}{}
@@ -82,7 +85,7 @@ func (u *Bodkin) Changes() error { return u.changes }
 // Times use a format of HH:MM or HH:MM:SS[.zzz] where the fractions of a second cannot
 // exceed the precision allowed by the time unit, otherwise unmarshalling will error.
 //
-// # Dates use YYYY-MM-DD format
+// Dates use YYYY-MM-DD format.
 //
 // Timestamps use RFC3339Nano format except without a timezone, all of the following are valid:
 //
@@ -104,7 +107,7 @@ func WithTypeConversion() Option {
 }
 
 // Unify merges structured input's column definition with the previously input's schema.
-// Any uppopulated fields, empty objects or empty slices in the input are skipped.
+// Any uppopulated fields, empty objects or empty slices in JSON input are skipped.
 func (u *Bodkin) Unify(a any) {
 	m := map[string]interface{}{}
 	switch input := a.(type) {
