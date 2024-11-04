@@ -7,17 +7,26 @@ import (
 	"slices"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/apache/arrow-go/v18/arrow/array"
 )
 
 type fieldPos struct {
 	root         *fieldPos
 	parent       *fieldPos
 	owner        *Bodkin
+	builder      array.Builder
 	name         string
 	path         []string
+	isList       bool
+	isItem       bool
+	isStruct     bool
+	isMap        bool
+	typeName     string
 	field        arrow.Field
 	children     []*fieldPos
 	childmap     map[string]*fieldPos
+	appendFunc   func(val interface{}) error
+	metadatas    arrow.Metadata
 	index, depth int32
 	err          error
 }
@@ -31,6 +40,8 @@ var (
 	ErrUndefinedArrayElementType = errors.New("could not determine element type of empty array")
 	ErrNotAnUpgradableType       = errors.New("is not an upgradable type")
 	ErrPathNotFound              = errors.New("path not found")
+	ErrFieldTypeChanged          = errors.New("changed")
+	ErrFieldAdded                = errors.New("added")
 )
 
 // UpgradableTypes are scalar types that can be upgraded to a more flexible type.
@@ -184,7 +195,7 @@ func (f *fieldPos) graft(n *fieldPos) {
 	graft.children = append(graft.children, n.children...)
 	graft.mapChildren()
 	f.assignChild(graft)
-	f.owner.changes = errors.Join(f.owner.changes, fmt.Errorf("added %v : %v", graft.dotPath(), graft.field.Type.String()))
+	f.owner.changes = errors.Join(f.owner.changes, fmt.Errorf("%w %v : %v", ErrFieldAdded, graft.dotPath(), graft.field.Type.String()))
 	if f.field.Type.ID() == arrow.STRUCT {
 		gf := f.field.Type.(*arrow.StructType)
 		var nf []arrow.Field
@@ -221,7 +232,7 @@ func (o *fieldPos) upgradeType(n *fieldPos, t arrow.Type) error {
 		}
 		o.parent.field = arrow.Field{Name: o.parent.name, Type: arrow.StructOf(fields...), Nullable: true}
 	}
-	o.owner.changes = errors.Join(o.owner.changes, fmt.Errorf("changed %v : from %v to %v", o.dotPath(), oldType, o.field.Type.String()))
+	o.owner.changes = errors.Join(o.owner.changes, fmt.Errorf("%w %v : from %v to %v", ErrFieldTypeChanged, o.dotPath(), oldType, o.field.Type.String()))
 	return nil
 }
 
@@ -353,7 +364,7 @@ func goType2Arrow(f *fieldPos, gt any) arrow.DataType {
 		if f.owner.inferTimeUnits {
 			for _, r := range timestampMatchers {
 				if r.MatchString(t) {
-					return arrow.FixedWidthTypes.Timestamp_ms
+					return arrow.FixedWidthTypes.Timestamp_us
 				}
 			}
 			if dateMatcher.MatchString(t) {

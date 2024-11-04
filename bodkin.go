@@ -74,7 +74,7 @@ func newBodkin(m map[string]any, opts ...Option) (*Bodkin, error) {
 	return b, errWrap(f)
 }
 
-// Err returns the last error encountered during the unification of input schemas.
+// Err returns the last errors encountered during the unification of input schemas.
 func (u *Bodkin) Err() error { return u.err }
 
 // Changes returns a list of field additions and field type conversions done
@@ -157,6 +157,7 @@ func (u *Bodkin) Unify(a any) {
 
 // Schema returns the original Arrow schema generated from the structure/types of
 // the initial input, and wrapped errors indicating which fields could not be evaluated.
+// Make sure to check that returned schema != nil.
 func (u *Bodkin) OriginSchema() (*arrow.Schema, error) {
 	var fields []arrow.Field
 	for _, c := range u.original.children {
@@ -168,6 +169,7 @@ func (u *Bodkin) OriginSchema() (*arrow.Schema, error) {
 
 // Schema returns the current merged Arrow schema generated from the structure/types of
 // the input(s), and wrapped errors indicating which fields could not be evaluated.
+// Make sure to check that returned schema != nil.
 func (u *Bodkin) Schema() (*arrow.Schema, error) {
 	var fields []arrow.Field
 	for _, c := range u.old.children {
@@ -180,6 +182,7 @@ func (u *Bodkin) Schema() (*arrow.Schema, error) {
 // LastSchema returns the Arrow schema generated from the structure/types of
 // the most recent input. Any uppopulated fields, empty objects or empty slices are skipped.
 // ErrNoLatestSchema if Unify() has never been called.
+// Make sure to check that returned schema != nil.
 func (u *Bodkin) LastSchema() (*arrow.Schema, error) {
 	if u.new == nil {
 		return nil, ErrNoLatestSchema
