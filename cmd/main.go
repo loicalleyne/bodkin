@@ -81,7 +81,7 @@ func main() {
 	}
 	fmt.Printf("\nsecond unified %v\nerrors:\n%v\n", schema.String(), err)
 
-	rdr = array.NewJSONReader(strings.NewReader(jsonS3), schema)
+	rdr = array.NewJSONReader(strings.NewReader(jsonS2), schema)
 	defer rdr.Release()
 	for rdr.Next() {
 		rec := rdr.Record()

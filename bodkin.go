@@ -5,10 +5,12 @@ package bodkin
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/goccy/go-json"
+	omap "github.com/wk8/go-ordered-map/v2"
 )
 
 // Option configures a Bodkin
@@ -22,6 +24,9 @@ type Bodkin struct {
 	original               *fieldPos
 	old                    *fieldPos
 	new                    *fieldPos
+	knownFields            *omap.OrderedMap[string, *fieldPos]
+	untypedFields          *omap.OrderedMap[string, *fieldPos]
+	unificationCount       int
 	inferTimeUnits         bool
 	quotedValuesAreStrings bool
 	typeConversion         bool
@@ -34,12 +39,46 @@ type Bodkin struct {
 // Any uppopulated fields, empty objects or empty slices in JSON or map[string]any inputs are skipped as their
 // types cannot be evaluated and converted.
 func NewBodkin(a any, opts ...Option) (*Bodkin, error) {
-	m := map[string]interface{}{}
+	m, err := InputMap(a)
+	if err != nil {
+		return nil, err
+	}
+	return newBodkin(m, opts...)
+}
+
+func newBodkin(m map[string]any, opts ...Option) (*Bodkin, error) {
+	b := &Bodkin{}
+	for _, opt := range opts {
+		opt(b)
+	}
+
+	// Ordered map of known fields, keys are field dotpaths.
+	b.knownFields = omap.New[string, *fieldPos]()
+	b.untypedFields = omap.New[string, *fieldPos]()
+	// Keep an immutable copy of the initial evaluation.
+	g := newFieldPos(b)
+	mapToArrow(g, m)
+	b.original = g
+
+	// Identical to above except this one can be mutated with Unify.
+	f := newFieldPos(b)
+	mapToArrow(f, m)
+	b.old = f
+
+	return b, errWrap(f)
+}
+
+// InputMap takes structured input data and attempts to decode it to
+// map[string]any. Input data can be json in string or []byte, or any other
+// Go data type which can be decoded by [MapStructure/v2].
+// [MapStructure/v2]: github.com/go-viper/mapstructure/v2
+func InputMap(a any) (map[string]any, error) {
+	m := map[string]any{}
 	switch input := a.(type) {
 	case nil:
 		return nil, ErrUndefinedInput
 	case map[string]any:
-		return newBodkin(input, opts...)
+		return input, nil
 	case []byte:
 		err := json.Unmarshal(input, &m)
 		if err != nil {
@@ -56,22 +95,7 @@ func NewBodkin(a any, opts ...Option) (*Bodkin, error) {
 			return nil, fmt.Errorf("%v : %v", ErrInvalidInput, err)
 		}
 	}
-	return newBodkin(m, opts...)
-}
-
-func newBodkin(m map[string]any, opts ...Option) (*Bodkin, error) {
-	b := &Bodkin{}
-	f := newFieldPos(b)
-	for _, opt := range opts {
-		opt(b)
-	}
-	mapToArrow(f, m)
-	b.old = f
-
-	g := newFieldPos(b)
-	mapToArrow(g, m)
-	b.original = g
-	return b, errWrap(f)
+	return m, nil
 }
 
 // Err returns the last errors encountered during the unification of input schemas.
@@ -80,6 +104,9 @@ func (u *Bodkin) Err() error { return u.err }
 // Changes returns a list of field additions and field type conversions done
 // in the lifetime of the Bodkin object.
 func (u *Bodkin) Changes() error { return u.changes }
+
+// Count returns the number of datum evaluated for schema to date.
+func (u *Bodkin) Count() int { return u.unificationCount }
 
 // WithInferTimeUnits() enables scanning input string values for time, date and timestamp types.
 //
@@ -153,6 +180,7 @@ func (u *Bodkin) Unify(a any) {
 	for _, field := range u.new.children {
 		u.merge(field)
 	}
+	u.unificationCount++
 }
 
 // Schema returns the original Arrow schema generated from the structure/types of
@@ -255,4 +283,33 @@ func (u *Bodkin) merge(n *fieldPos) {
 			u.merge(v)
 		}
 	}
+}
+
+func (u *Bodkin) knownFieldsSortKeysDesc() []string {
+	sortedPaths := make([]string, u.knownFields.Len())
+	paths := make([]string, u.knownFields.Len())
+	i := 0
+	for pair := u.knownFields.Newest(); pair != nil; pair = pair.Prev() {
+		paths[i] = pair.Key
+		i++
+	}
+	maxDepth := 0
+	for _, p := range paths {
+		pathDepth := strings.Count(p, ".")
+		if pathDepth > maxDepth {
+			maxDepth = pathDepth
+		}
+	}
+	sortIndex := 0
+	for maxDepth >= 0 {
+		for _, p := range paths {
+			pathDepth := strings.Count(p, ".")
+			if pathDepth == maxDepth {
+				sortedPaths[sortIndex] = p
+				sortIndex++
+			}
+		}
+		maxDepth--
+	}
+	return sortedPaths
 }

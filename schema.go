@@ -99,6 +99,8 @@ func newFieldPos(b *Bodkin) *fieldPos {
 func (f *fieldPos) assignChild(child *fieldPos) {
 	f.children = append(f.children, child)
 	f.childmap[child.name] = child
+	f.owner.knownFields.Set(child.dotPath(), child)
+	f.owner.untypedFields.Delete(child.dotPath())
 }
 
 func (f *fieldPos) child(index int) (*fieldPos, error) {
@@ -195,6 +197,7 @@ func (f *fieldPos) graft(n *fieldPos) {
 	graft.children = append(graft.children, n.children...)
 	graft.mapChildren()
 	f.assignChild(graft)
+	f.owner.untypedFields.Delete(graft.dotPath())
 	f.owner.changes = errors.Join(f.owner.changes, fmt.Errorf("%w %v : %v", ErrFieldAdded, graft.dotPath(), graft.field.Type.String()))
 	if f.field.Type.ID() == arrow.STRUCT {
 		gf := f.field.Type.(*arrow.StructType)
@@ -264,10 +267,13 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 			if len(child.children) != 0 {
 				child.field = arrow.Field{Name: k, Type: arrow.StructOf(fields...), Nullable: true}
 				f.assignChild(child)
+			} else {
+				f.owner.untypedFields.Set(child.dotPath(), child)
 			}
 
 		case []any:
 			if len(t) <= 0 {
+				f.owner.untypedFields.Set(child.dotPath(), child)
 				f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedArrayElementType, child.namePath()))
 			} else {
 				et := sliceElemType(child, t)
@@ -275,6 +281,7 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 				f.assignChild(child)
 			}
 		case nil:
+			f.owner.untypedFields.Set(child.dotPath(), child)
 			f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedFieldType, child.namePath()))
 		default:
 			child.field = arrow.Field{Name: k, Type: goType2Arrow(child, v), Nullable: true}
