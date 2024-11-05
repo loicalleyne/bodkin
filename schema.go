@@ -17,10 +17,7 @@ type fieldPos struct {
 	builder      array.Builder
 	name         string
 	path         []string
-	isList       bool
-	isItem       bool
-	isStruct     bool
-	isMap        bool
+	arrowType    arrow.Type
 	typeName     string
 	field        arrow.Field
 	children     []*fieldPos
@@ -46,13 +43,18 @@ var (
 
 // UpgradableTypes are scalar types that can be upgraded to a more flexible type.
 var UpgradableTypes []arrow.Type = []arrow.Type{arrow.INT8,
+	arrow.UINT8,
 	arrow.INT16,
+	arrow.UINT16,
 	arrow.INT32,
+	arrow.UINT64,
 	arrow.INT64,
+	arrow.FLOAT16,
+	arrow.FLOAT32,
+	arrow.FLOAT64,
 	arrow.DATE32,
 	arrow.TIME64,
 	arrow.TIMESTAMP,
-	arrow.STRING,
 }
 
 // Regular expressions and variables for type inference.
@@ -124,6 +126,7 @@ func (f *fieldPos) newChild(childName string) *fieldPos {
 	}
 	child.path = child.namePath()
 	child.childmap = make(map[string]*fieldPos)
+	child.arrowType = arrow.NULL
 	return &child
 }
 
@@ -193,10 +196,12 @@ func (f *fieldPos) getValue(m map[string]any) any {
 // graft grafts a new field into the schema tree
 func (f *fieldPos) graft(n *fieldPos) {
 	graft := f.newChild(n.name)
+	graft.arrowType = n.arrowType
 	graft.field = n.field
 	graft.children = append(graft.children, n.children...)
 	graft.mapChildren()
 	f.assignChild(graft)
+	f.owner.knownFields.Set(graft.dotPath(), graft)
 	f.owner.untypedFields.Delete(graft.dotPath())
 	f.owner.changes = errors.Join(f.owner.changes, fmt.Errorf("%w %v : %v", ErrFieldAdded, graft.dotPath(), graft.field.Type.String()))
 	if f.field.Type.ID() == arrow.STRUCT {
@@ -211,20 +216,38 @@ func (f *fieldPos) graft(n *fieldPos) {
 	}
 }
 
-// Only scalar types in UpgradableTypes[] can be upgraded
+// Only scalar types in UpgradableTypes[] can be upgraded:
+// Supported type upgrades:
+//
+//		arrow.INT8, arrow.INT16, arrow.INT32, arrow.INT64 => arrow.FLOAT64
+//		arrow.FLOAT16 => arrow.FLOAT32
+//		arrow.FLOAT32 => arrow.FLOAT64
+//	 	arrow.FLOAT64 => arrow.STRING
+//		arrow.TIMESTAMP => arrow.STRING
+//		arrow.DATE32 => arrow.TIMESTAMP
+//		arrow.DATE32 => arrow.STRING
+//		arrow.TIME64 => arrow.STRING
 func (o *fieldPos) upgradeType(n *fieldPos, t arrow.Type) error {
-	if !slices.Contains(UpgradableTypes, n.field.Type.ID()) {
-		return fmt.Errorf("%v %v", n.field.Type.Name(), ErrNotAnUpgradableType.Error())
+	if !slices.Contains(UpgradableTypes, o.field.Type.ID()) {
+		return fmt.Errorf("%s %v %v", n.dotPath(), n.field.Type.Name(), ErrNotAnUpgradableType.Error())
 	}
 	oldType := o.field.Type.String()
+	// changes to field
 	switch t {
+	case arrow.FLOAT32:
+		o.arrowType = arrow.FLOAT32
+		o.field = arrow.Field{Name: o.name, Type: arrow.PrimitiveTypes.Float32, Nullable: true}
 	case arrow.FLOAT64:
+		o.arrowType = arrow.FLOAT64
 		o.field = arrow.Field{Name: o.name, Type: arrow.PrimitiveTypes.Float64, Nullable: true}
 	case arrow.STRING:
+		o.arrowType = arrow.STRING
 		o.field = arrow.Field{Name: o.name, Type: arrow.BinaryTypes.String, Nullable: true}
 	case arrow.TIMESTAMP:
+		o.arrowType = arrow.TIMESTAMP
 		o.field = arrow.Field{Name: o.name, Type: arrow.FixedWidthTypes.Timestamp_ms, Nullable: true}
 	}
+	// changes to parent
 	switch o.parent.field.Type.ID() {
 	case arrow.LIST:
 		o.parent.field = arrow.Field{Name: o.parent.name, Type: arrow.ListOf(n.field.Type), Nullable: true}
@@ -268,11 +291,12 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 				child.field = arrow.Field{Name: k, Type: arrow.StructOf(fields...), Nullable: true}
 				f.assignChild(child)
 			} else {
+				child.arrowType = arrow.STRUCT
 				f.owner.untypedFields.Set(child.dotPath(), child)
 			}
-
 		case []any:
 			if len(t) <= 0 {
+				child.arrowType = arrow.LIST
 				f.owner.untypedFields.Set(child.dotPath(), child)
 				f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedArrayElementType, child.namePath()))
 			} else {
@@ -281,6 +305,7 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 				f.assignChild(child)
 			}
 		case nil:
+			child.arrowType = arrow.NULL
 			f.owner.untypedFields.Set(child.dotPath(), child)
 			f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedFieldType, child.namePath()))
 		default:
@@ -292,6 +317,7 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 	for _, c := range f.children {
 		fields = append(fields, c.field)
 	}
+	f.arrowType = arrow.STRUCT
 	f.field = arrow.Field{Name: f.name, Type: arrow.StructOf(fields...), Nullable: true}
 }
 
@@ -300,7 +326,7 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 func sliceElemType(f *fieldPos, v []any) arrow.DataType {
 	switch ft := v[0].(type) {
 	case map[string]any:
-		child := f.newChild(f.name + ".elem")
+		child := f.newChild(f.name + "_elem")
 		mapToArrow(child, ft)
 		var fields []arrow.Field
 		for _, c := range child.children {
@@ -313,7 +339,7 @@ func sliceElemType(f *fieldPos, v []any) arrow.DataType {
 			f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedArrayElementType, f.namePath()))
 			return arrow.GetExtensionType("skip")
 		}
-		child := f.newChild(f.name + ".elem")
+		child := f.newChild(f.name + "_elem")
 		et := sliceElemType(child, v[0].([]any))
 		f.assignChild(child)
 		return arrow.ListOf(et)
@@ -321,89 +347,4 @@ func sliceElemType(f *fieldPos, v []any) arrow.DataType {
 		return goType2Arrow(f, v)
 	}
 	return nil
-}
-
-// goType2Arrow maps a Go type to an Arrow DataType.
-func goType2Arrow(f *fieldPos, gt any) arrow.DataType {
-	var dt arrow.DataType
-	switch t := gt.(type) {
-	case []any:
-		return goType2Arrow(f, t[0])
-	// either 32 or 64 bits
-	case int:
-		dt = arrow.PrimitiveTypes.Int64
-	// the set of all signed  8-bit integers (-128 to 127)
-	case int8:
-		dt = arrow.PrimitiveTypes.Int8
-	// the set of all signed 16-bit integers (-32768 to 32767)
-	case int16:
-		dt = arrow.PrimitiveTypes.Int16
-	// the set of all signed 32-bit integers (-2147483648 to 2147483647)
-	case int32:
-		dt = arrow.PrimitiveTypes.Int32
-	// the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
-	case int64:
-		dt = arrow.PrimitiveTypes.Int64
-	// either 32 or 64 bits
-	case uint:
-		dt = arrow.PrimitiveTypes.Uint64
-	// the set of all unsigned  8-bit integers (0 to 255)
-	case uint8:
-		dt = arrow.PrimitiveTypes.Uint8
-	// the set of all unsigned 16-bit integers (0 to 65535)
-	case uint16:
-		dt = arrow.PrimitiveTypes.Uint16
-	// the set of all unsigned 32-bit integers (0 to 4294967295)
-	case uint32:
-		dt = arrow.PrimitiveTypes.Uint32
-	// the set of all unsigned 64-bit integers (0 to 18446744073709551615)
-	case uint64:
-		dt = arrow.PrimitiveTypes.Uint64
-	// the set of all IEEE-754 32-bit floating-point numbers
-	case float32:
-		dt = arrow.PrimitiveTypes.Float32
-	// the set of all IEEE-754 64-bit floating-point numbers
-	case float64:
-		dt = arrow.PrimitiveTypes.Float64
-	case bool:
-		dt = arrow.FixedWidthTypes.Boolean
-	case string:
-		if f.owner.inferTimeUnits {
-			for _, r := range timestampMatchers {
-				if r.MatchString(t) {
-					return arrow.FixedWidthTypes.Timestamp_us
-				}
-			}
-			if dateMatcher.MatchString(t) {
-				return arrow.FixedWidthTypes.Date32
-			}
-			if timeMatcher.MatchString(t) {
-				return arrow.FixedWidthTypes.Time64ns
-			}
-		}
-		if !f.owner.quotedValuesAreStrings {
-			if slices.Contains(boolMatcher, t) {
-				return arrow.FixedWidthTypes.Boolean
-			}
-			if integerMatcher.MatchString(t) {
-				return arrow.PrimitiveTypes.Int64
-			}
-			if floatMatcher.MatchString(t) {
-				return arrow.PrimitiveTypes.Float64
-			}
-		}
-		dt = arrow.BinaryTypes.String
-	case []byte:
-		dt = arrow.BinaryTypes.Binary
-	// the set of all complex numbers with float32 real and imaginary parts
-	case complex64:
-		// TO-DO
-	// the set of all complex numbers with float64 real and imaginary parts
-	case complex128:
-		// TO-DO
-	case nil:
-		f.err = fmt.Errorf("%v : %v", ErrUndefinedFieldType, f.namePath())
-		dt = arrow.BinaryTypes.Binary
-	}
-	return dt
 }

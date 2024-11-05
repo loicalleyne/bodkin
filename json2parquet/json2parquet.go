@@ -14,34 +14,28 @@ import (
 )
 
 func FromReader(r io.Reader, opts ...bodkin.Option) (*arrow.Schema, int, error) {
-	var err, errBundle error
+	var err error
 	s := bufio.NewScanner(r)
 	var u *bodkin.Bodkin
-	var i int
 	if s.Scan() {
 		u, err = bodkin.NewBodkin(s.Bytes(), opts...)
 		if err != nil {
-			errBundle = errors.Join(errBundle, err)
+			return nil, 0, bodkin.ErrInvalidInput
 		}
-		i++
 	} else {
-		return nil, i, bodkin.ErrInvalidInput
+		return nil, 0, bodkin.ErrInvalidInput
 	}
 	for s.Scan() {
 		u.Unify(s.Bytes())
-		i++
-		if i > 10000 {
+		if u.Count() > 10000 {
 			break
 		}
 	}
 	schema, err := u.Schema()
-	if schema == nil {
-		if err != nil {
-			errBundle = errors.Join(errBundle, err)
-		}
-		return nil, i, errBundle
+	if err != nil {
+		return nil, u.Count(), err
 	}
-	return schema, i, errBundle
+	return schema, u.Count(), err
 }
 
 func SchemaFromFile(inputFile string, opts ...bodkin.Option) (*arrow.Schema, int, error) {

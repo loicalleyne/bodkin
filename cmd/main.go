@@ -42,14 +42,23 @@ func main() {
 	}
 	e, _ := bodkin.NewBodkin(stu, bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
 	sc, err := e.OriginSchema()
-	fmt.Printf("original input %v\nerrors:\n%v\n", sc.String(), err)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("original input %v\n", sc.String())
 	e.Unify(sch)
 	sc, err = e.OriginSchema()
-	fmt.Printf("unified %v\nerrors:\n%v\n\n", sc.String(), err)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("unified %v\n", sc.String())
 
 	u, _ := bodkin.NewBodkin(jsonS1, bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
 	s, err := u.OriginSchema()
-	fmt.Printf("original input %v\nerrors:\n%v\n", s.String(), err)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("original input %v\n", s.String())
 
 	u.Unify(jsonS2)
 	schema, err := u.Schema()
@@ -57,22 +66,8 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Printf("changes:\n%v\n", u.Changes())
-	fmt.Printf("\nunified %v\nerrors:\n%v\n", schema.String(), err)
-
-	rdr := array.NewJSONReader(strings.NewReader(jsonS2), schema)
-	defer rdr.Release()
-	for rdr.Next() {
-		rec := rdr.Record()
-		rj, err := rec.MarshalJSON()
-		if err != nil {
-			fmt.Printf("error marshaling record: %v\n", err)
-		}
-		fmt.Printf("\nmarshaled record:\n%v\n", string(rj))
-	}
-	if err := rdr.Err(); err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(u.Changes())
+	fmt.Printf("\nunified %v\n", schema.String())
+	var rdr *array.JSONReader
 
 	u.Unify(jsonS3)
 	schema, err = u.Schema()
@@ -80,6 +75,20 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Printf("\nsecond unified %v\nerrors:\n%v\n", schema.String(), err)
+
+	rdr = array.NewJSONReader(strings.NewReader(jsonS1), schema)
+	defer rdr.Release()
+	for rdr.Next() {
+		rec := rdr.Record()
+		rj, err := rec.MarshalJSON()
+		if err != nil {
+			fmt.Printf("error marshaling record: %v\n", err)
+		}
+		fmt.Printf("\nmarshaled record jsonS1:\n%v\n", string(rj))
+	}
+	if err := rdr.Err(); err != nil {
+		fmt.Println(err)
+	}
 
 	rdr = array.NewJSONReader(strings.NewReader(jsonS2), schema)
 	defer rdr.Release()
@@ -89,12 +98,74 @@ func main() {
 		if err != nil {
 			fmt.Printf("error marshaling record: %v\n", err)
 		}
-		fmt.Printf("\nmarshaled record:\n%v\n", string(rj))
+		fmt.Printf("\nmarshaled record jsonS2:\n%v\n", string(rj))
 	}
 	if err := rdr.Err(); err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(u.Changes())
+	rdr = array.NewJSONReader(strings.NewReader(jsonS3), schema)
+	defer rdr.Release()
+	for rdr.Next() {
+		rec := rdr.Record()
+		rj, err := rec.MarshalJSON()
+		if err != nil {
+			fmt.Printf("error marshaling record: %v\n", err)
+		}
+		fmt.Printf("\nmarshaled record jsonS3:\n%v\n", string(rj))
+	}
+	if err := rdr.Err(); err != nil {
+		fmt.Println(err)
+	}
+
+	err = u.UnifyAtPath(jsonS4, "$results.results_elem")
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		schema, err = u.Schema()
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Printf("\nAtPath unified %v\n", schema.String())
+	}
+	rdr = array.NewJSONReader(strings.NewReader(jsonS5), schema)
+	defer rdr.Release()
+	for rdr.Next() {
+		rec := rdr.Record()
+		rj, err := rec.MarshalJSON()
+		if err != nil {
+			fmt.Printf("error marshaling record: %v\n", err)
+		}
+		fmt.Printf("\nmarshaled record jsonS5:\n%v\n", string(rj))
+	}
+	if err := rdr.Err(); err != nil {
+		fmt.Println(err)
+	}
+
+	err = u.UnifyAtPath(jsonS4, "$results.nonexistant")
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		schema, err = u.Schema()
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Printf("\nAtPath unified %v\n", schema.String())
+	}
+	rdr = array.NewJSONReader(strings.NewReader(jsonS7), schema)
+	defer rdr.Release()
+	for rdr.Next() {
+		rec := rdr.Record()
+		rj, err := rec.MarshalJSON()
+		if err != nil {
+			fmt.Printf("error marshaling record: %v\n", err)
+		}
+		fmt.Printf("\nmarshaled record jsonS7, ignoring unknown:\n%v\n", string(rj))
+	}
+	if err := rdr.Err(); err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(u.Paths())
+	fmt.Println(u.Err())
 }
 
 var jsonS1 string = `{
@@ -153,3 +224,33 @@ var jsonS3 string = `{
 		  }
 		]
 	  }`
+
+var jsonS4 string = `{
+	"embed": {
+		"id": "AAAAA",
+		"truthy": false
+	}
+  }`
+
+var jsonS5 string = `{
+	"results": [
+	  {
+		"id": 6328,
+		"embed": {
+			"id": "AAAAA"
+		}
+	  }
+	]
+  }`
+
+var jsonS7 string = `{
+	"xcount": 89.5,
+	"next": "https://sub.domain.com/api/search/?models=thurblig&page=3",
+	"previous": "https://sub.domain.com/api/search/?models=thurblig&page=2",
+	"results": [{"id":7594,"scalar":241.5,"nested":{"strscalar":"str1","nestedarray":[123,456]}}],
+	"arrayscalar":["str"],
+	"datetime":"2024-10-24 19:03:09",
+	"event_time":"2024-10-24T19:03:09+00:00",
+	"datefield":"2024-10-24T19:03:09+00:00",
+	"timefield":"1970-01-01"
+	}`
