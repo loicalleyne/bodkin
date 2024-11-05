@@ -213,8 +213,6 @@ func (u *Bodkin) ExportSchema(exportPath string) error {
 	defer pw.Close()
 
 	rb := array.NewRecordBuilder(memory.DefaultAllocator, schema)
-	// json data unlikely to conflict with a real detected schema
-	// m, _ := InputMap([]byte(`{"nevergonnagiveyouup":"nevergonnaletyoudown"}`))
 	m := make(map[string]any)
 	for _, c := range u.old.children {
 		switch c.arrowType {
@@ -232,7 +230,6 @@ func (u *Bodkin) ExportSchema(exportPath string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(data))
 	// array.UnmarshalJSON for record builder will read in a single object and add the values to each field in the recordbuilder,
 	// missing fields will get a null and unexpected keys will be ignored. If reading in an array of records as a single batch,
 	// then use a structbuilder and use RecordFromStruct. This is fine as we are only interested in the Arrow schema.
@@ -249,8 +246,7 @@ func (u *Bodkin) ExportSchema(exportPath string) error {
 		return err
 	}
 
-	f.Sync()
-	return nil
+	return f.Sync()
 }
 
 // ImportSchema imports an Arrow Schema from an Arrow IPC file.
