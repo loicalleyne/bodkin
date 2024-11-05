@@ -1,4 +1,7 @@
-# Bodkin
+Bodkin
+===================
+[![Go Reference](https://pkg.go.dev/badge/github.com/loicalleyne/bodkin.svg)](https://pkg.go.dev/github.com/loicalleyne/bodkin)
+
 Go library for generating schemas and decoding generic map values and native Go structures to Apache Arrow. 
 
 The goal is to provide a useful toolkit to make it easier to use Arrow, and by extension Parquet.
