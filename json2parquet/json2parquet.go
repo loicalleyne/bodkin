@@ -11,6 +11,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/parquet"
 	"github.com/loicalleyne/bodkin"
+	"github.com/loicalleyne/bodkin/pq"
 )
 
 func FromReader(r io.Reader, opts ...bodkin.Option) (*arrow.Schema, int, error) {
@@ -62,11 +63,11 @@ func RecordsFromFile(inputFile, outputFile string, schema *arrow.Schema, munger 
 		}
 	}()
 	defer f.Close()
-	var prp *parquet.WriterProperties = defaultWrtp
+	var prp *parquet.WriterProperties = pq.DefaultWrtp
 	if len(opts) != 0 {
 		prp = parquet.NewWriterProperties(opts...)
 	}
-	pw, _, err := NewParquetWriter(schema, prp, outputFile)
+	pw, _, err := pq.NewParquetWriter(schema, prp, outputFile)
 	if err != nil {
 		return 0, err
 	}

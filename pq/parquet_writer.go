@@ -1,4 +1,4 @@
-package json2parquet
+package pq
 
 import (
 	"fmt"
@@ -18,12 +18,12 @@ const (
 )
 
 var (
-	defaultWrtp = parquet.NewWriterProperties(
+	DefaultWrtp = parquet.NewWriterProperties(
 		parquet.WithDictionaryDefault(true),
 		parquet.WithVersion(parquet.V2_LATEST),
 		parquet.WithCompression(compress.Codecs.Zstd),
 		parquet.WithStats(true),
-		parquet.WithRootName("json2parquet"),
+		parquet.WithRootName("bodkin"),
 	)
 )
 
@@ -63,8 +63,8 @@ func NewParquetWriter(sc *arrow.Schema, wrtp *parquet.WriterProperties, path str
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create destination file: %w", err)
 	}
-
-	pqwrt, err := pqarrow.NewFileWriter(sc, destFile, wrtp, pqarrow.DefaultWriterProps())
+	artp := pqarrow.NewArrowWriterProperties(pqarrow.WithStoreSchema())
+	pqwrt, err := pqarrow.NewFileWriter(sc, destFile, wrtp, artp)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create parquet writer: %w", err)
 	}

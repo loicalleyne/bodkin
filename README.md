@@ -13,6 +13,7 @@ The goal is to provide a useful toolkit to make it easier to use Arrow, and by e
 - Automatically evolves the Arrow schema with new fields when providing new inputs
 - Converts schema field types when unifying schemas to accept evolving input data
 - Tracks changes to the schema
+- Export/import a schema to/from a file to persist schema definition
 
 ## 🚀 Install
 

@@ -169,6 +169,18 @@ func main() {
 		fmt.Printf("%v : [%s]\n", e.Issue, e.Dotpath)
 	}
 	fmt.Println(u.Changes())
+	err = u.ExportSchema("./test.schema")
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		imp, err := u.ImportSchema("./test.schema")
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			fmt.Printf("imported %v\n", imp.String())
+		}
+
+	}
 
 }
 

@@ -26,3 +26,4 @@ go.work.sum
 
 avro/
 map.go
+*.schema
