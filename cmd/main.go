@@ -165,7 +165,11 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println(u.Paths())
-	fmt.Println(u.Err())
+	for _, e := range u.Err() {
+		fmt.Printf("%v : [%s]\n", e.Issue, e.Dotpath)
+	}
+	fmt.Println(u.Changes())
+
 }
 
 var jsonS1 string = `{

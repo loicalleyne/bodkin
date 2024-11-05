@@ -40,8 +40,11 @@ var jsonS1 string = `{
     "timefield":"01:02:03"
     }`
 u, _ := bodkin.NewBodkin(jsonS1, bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
-s, err := u.OriginSchema()
-fmt.Printf("original input %v\nerrors:\n%v\n", s.String(), err)
+s, _ := u.OriginSchema()
+fmt.Printf("original input %v\n", s.String())
+for _, e := range u.Err() {
+	fmt.Printf("%v : [%s]\n", e.Issue, e.Dotpath)
+}
 // original input schema:
 //   fields: 5
 //     - results: type=list<item: struct<id: float64>, nullable>, nullable
@@ -49,9 +52,8 @@ fmt.Printf("original input %v\nerrors:\n%v\n", s.String(), err)
 //     - timefield: type=time64[ns], nullable
 //     - count: type=float64, nullable
 //     - next: type=utf8, nullable
-// errors:
-// could not determine type of unpopulated field : [previous]
-// could not determine element type of empty array : [arrayscalar]
+// could not determine type of unpopulated field : [$previous]
+// could not determine element type of empty array : [$arrayscalar]
 ```
 
 Provide some more structured data and print out the new merged schema and the list of changes
@@ -109,7 +111,7 @@ Also works with Go structs
 	}
 	e, _ := bodkin.NewBodkin(stu, bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
 	sc, err := e.OriginSchema()
-	fmt.Printf("original input %v\nerrors:\n%v\n", sc.String(), err)
+	fmt.Printf("original input %v\n", sc.String())
 // original input schema:
 //   fields: 5
 //     - ID: type=int64, nullable
@@ -117,11 +119,9 @@ Also works with Go structs
 //     - School: type=struct<Name: utf8, Address: struct<Street: utf8, City: utf8, Region: utf8, Country: utf8>>, nullable
 //     - Name: type=utf8, nullable
 //     - Age: type=int32, nullable
-// errors:
-// <nil>
 	e.Unify(sch)
 	sc, err = e.OriginSchema()
-	fmt.Printf("unified %v\nerrors:\n%v\n", sc.String(), err)
+	fmt.Printf("unified %v\n", sc.String())
 // unified schema:
 //   fields: 5
 //     - ID: type=int64, nullable
@@ -129,8 +129,6 @@ Also works with Go structs
 //     - School: type=struct<Name: utf8, Address: struct<Street: utf8, City: utf8, Region: utf8, Country: utf8>>, nullable
 //     - Name: type=utf8, nullable
 //     - Age: type=int32, nullable
-// errors:
-// <nil>
 ```
 
 Use the generated Arrow schema with Arrow's built-in JSON reader to decode JSON data into Arrow records
