@@ -4,7 +4,8 @@ Bodkin
 
 Go library for generating schemas and decoding generic map values and native Go structures to Apache Arrow. 
 
-The goal is to provide a useful toolkit to make it easier to use Arrow, and by extension Parquet.
+The goal is to provide a useful toolkit to make it easier to use Arrow, and by extension Parquet, especially on data whose schema is evolving or not strictly defined. An example would be with working with data retrieved from a 3rd-party API that does not maintain their OpenAPI spec.
+Bodkin enables you to use your _data_ to define and evolve your Arrow Schema.
 
 ## Features
 
@@ -13,7 +14,7 @@ The goal is to provide a useful toolkit to make it easier to use Arrow, and by e
 - Automatically evolves the Arrow schema with new fields when providing new inputs
 - Converts schema field types when unifying schemas to accept evolving input data
 - Tracks changes to the schema
-- Export/import a schema to/from a file to persist schema definition
+- Export/import a schema to/from a stub parquet file to persist schema definition
 
 ## 🚀 Install
 
@@ -148,6 +149,14 @@ for rdr.Next() {
 // [{"arrayscalar":["str"],"count":89.5,"datefield":"2024-10-24 19:03:09Z","datetime":"2024-10-24 19:03:09Z","event_time":"2024-10-24 19:03:09Z","next":"https://sub.domain.com/api/search/?models=thurblig\u0026page=3","previous":"https://sub.domain.com/api/search/?models=thurblig\u0026page=2","results":[{"id":7594,"nested":{"nestedarray":[123,456],"strscalar":"str1"},"scalar":241.5}],"timefield":"1970-01-01"}
 // ]
 ```
+
+Export your schema to a file, then import the file to retrieve the schema
+```go
+ _ = u.ExportSchema("./test.schema")
+ imp, _ := u.ImportSchema("./test.schema")
+ fmt.Printf("imported %v\n", imp.String())
+```
+
 ## 💫 Show your support
 
 Give a ⭐️ if this project helped you!
