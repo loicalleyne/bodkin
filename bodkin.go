@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"slices"
 	"strings"
@@ -52,7 +53,8 @@ type Bodkin struct {
 	new                    *fieldPos
 	knownFields            *omap.OrderedMap[string, *fieldPos]
 	untypedFields          *omap.OrderedMap[string, *fieldPos]
-	unificationCount       int
+	unificationCount       int64
+	maxCount               int64
 	inferTimeUnits         bool
 	quotedValuesAreStrings bool
 	typeConversion         bool
@@ -90,7 +92,7 @@ func newBodkin(m map[string]any, opts ...Option) (*Bodkin, error) {
 	f := newFieldPos(b)
 	mapToArrow(f, m)
 	b.old = f
-
+	b.maxCount = int64(math.MaxInt64)
 	return b, err
 }
 
@@ -165,7 +167,24 @@ func (u *Bodkin) Err() []Field {
 func (u *Bodkin) Changes() error { return u.changes }
 
 // Count returns the number of datum evaluated for schema to date.
-func (u *Bodkin) Count() int { return u.unificationCount }
+func (u *Bodkin) Count() int64 { return u.unificationCount }
+
+// MaxCount returns the maximum number of datum to be evaluated for schema.
+func (u *Bodkin) MaxCount() int64 { return u.unificationCount }
+
+// ResetCount resets the count of datum evaluated for schema to date.
+func (u *Bodkin) ResetCount() int64 {
+	u.unificationCount = 0
+	return u.unificationCount
+}
+
+// ResetMaxCount resets the maximum number of datam to be evaluated for schema
+// to maxInt64.
+// ResetCount resets the count of datum evaluated for schema to date.
+func (u *Bodkin) ResetMaxCount() int64 {
+	u.maxCount = int64(math.MaxInt64)
+	return u.unificationCount
+}
 
 // Paths returns a slice of dotpaths of fields successfully evaluated to date.
 func (u *Bodkin) Paths() []Field {
@@ -274,11 +293,14 @@ func (u *Bodkin) ImportSchema(importPath string) (*arrow.Schema, error) {
 
 // Unify merges structured input's column definition with the previously input's schema.
 // Any uppopulated fields, empty objects or empty slices in JSON input are skipped.
-func (u *Bodkin) Unify(a any) {
+func (u *Bodkin) Unify(a any) error {
+	if u.unificationCount > u.maxCount {
+		return fmt.Errorf("maxcount exceeded")
+	}
 	m, err := InputMap(a)
 	if err != nil {
 		u.err = fmt.Errorf("%v : %v", ErrInvalidInput, err)
-		return
+		return fmt.Errorf("%v : %v", ErrInvalidInput, err)
 	}
 
 	f := newFieldPos(u)
@@ -288,6 +310,7 @@ func (u *Bodkin) Unify(a any) {
 		u.merge(field, nil)
 	}
 	u.unificationCount++
+	return nil
 }
 
 // Unify merges structured input's column definition with the previously input's schema,
@@ -295,6 +318,9 @@ func (u *Bodkin) Unify(a any) {
 // not found.
 // Any uppopulated fields, empty objects or empty slices in JSON input are skipped.
 func (u *Bodkin) UnifyAtPath(a any, mergeAt string) error {
+	if u.unificationCount > u.maxCount {
+		return fmt.Errorf("maxcount exceeded")
+	}
 	mergePath := make([]string, 0)
 	if !(len(mergeAt) == 0 || mergeAt == "$") {
 		mergePath = strings.Split(strings.TrimPrefix(mergeAt, "$"), ".")

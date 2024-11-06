@@ -32,3 +32,10 @@ func WithQuotedValuesAreStrings() Option {
 		cfg.quotedValuesAreStrings = true
 	}
 }
+
+// WithMaxCount enables capping the number of Unify evaluations.
+func WithMaxCount(i int64) Option {
+	return func(cfg config) {
+		cfg.maxCount = i
+	}
+}

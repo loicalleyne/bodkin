@@ -14,7 +14,7 @@ import (
 	"github.com/loicalleyne/bodkin/pq"
 )
 
-func FromReader(r io.Reader, opts ...bodkin.Option) (*arrow.Schema, int, error) {
+func FromReader(r io.Reader, opts ...bodkin.Option) (*arrow.Schema, int64, error) {
 	var err error
 	s := bufio.NewScanner(r)
 	var u *bodkin.Bodkin
@@ -28,7 +28,7 @@ func FromReader(r io.Reader, opts ...bodkin.Option) (*arrow.Schema, int, error) 
 	}
 	for s.Scan() {
 		u.Unify(s.Bytes())
-		if u.Count() > 10000 {
+		if u.Count() > u.MaxCount() {
 			break
 		}
 	}

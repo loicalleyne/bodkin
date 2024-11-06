@@ -179,7 +179,6 @@ func main() {
 		} else {
 			fmt.Printf("imported %v\n", imp.String())
 		}
-
 	}
 
 }
