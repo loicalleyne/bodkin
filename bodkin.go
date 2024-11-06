@@ -13,15 +13,10 @@ import (
 	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
-	"github.com/apache/arrow-go/v18/arrow/array"
+	"github.com/apache/arrow-go/v18/arrow/flight"
 	"github.com/apache/arrow-go/v18/arrow/memory"
-	"github.com/apache/arrow-go/v18/parquet"
-	"github.com/apache/arrow-go/v18/parquet/compress"
-	"github.com/apache/arrow-go/v18/parquet/file"
-	"github.com/apache/arrow-go/v18/parquet/pqarrow"
 	"github.com/go-viper/mapstructure/v2"
 	json "github.com/goccy/go-json"
-	"github.com/loicalleyne/bodkin/pq"
 	omap "github.com/wk8/go-ordered-map/v2"
 )
 
@@ -205,90 +200,41 @@ func (u *Bodkin) Paths() []Field {
 	return paths
 }
 
-// ExportSchema exports an Arrow Schema by writing a record full of null values to an Arrow IPC file.
-func (u *Bodkin) ExportSchema(exportPath string) error {
-	f, err := os.Open(exportPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
+// ExportSchema exports a serialized Arrow Schema to a file.
+func (u *Bodkin) ExportSchemaFile(exportPath string) error {
 	schema, err := u.Schema()
 	if err != nil {
 		return err
 	}
-	var prp *parquet.WriterProperties = parquet.NewWriterProperties(
-		parquet.WithDictionaryDefault(true),
-		parquet.WithVersion(parquet.V2_LATEST),
-		parquet.WithCompression(compress.Codecs.Zstd),
-		parquet.WithStats(true),
-		parquet.WithRootName("bodkin"),
-	)
-
-	pw, _, err := pq.NewParquetWriter(schema, prp, exportPath)
+	bs := flight.SerializeSchema(schema, memory.DefaultAllocator)
+	err = os.WriteFile("./temp.schema", bs, 0644)
 	if err != nil {
 		return err
 	}
-	defer pw.Close()
-
-	rb := array.NewRecordBuilder(memory.DefaultAllocator, schema)
-	m := make(map[string]any)
-	for _, c := range u.old.children {
-		switch c.arrowType {
-		case arrow.STRING:
-			if c.field.Type.ID() != arrow.LIST {
-				m[c.name] = "nevergonnagiveyouup"
-			}
-		case arrow.FLOAT64:
-			m[c.name] = 1.2345
-		case arrow.INT8, arrow.INT16, arrow.INT32, arrow.INT64, arrow.UINT8, arrow.UINT16, arrow.UINT32, arrow.UINT64:
-			m[c.name] = 1234
-		}
-	}
-	data, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	// array.UnmarshalJSON for record builder will read in a single object and add the values to each field in the recordbuilder,
-	// missing fields will get a null and unexpected keys will be ignored. If reading in an array of records as a single batch,
-	// then use a structbuilder and use RecordFromStruct. This is fine as we are only interested in the Arrow schema.
-	for i := 0; i < 10; i++ {
-		err = rb.UnmarshalJSON(data)
-		if err != nil {
-			return err
-		}
-	}
-
-	rec := rb.NewRecord()
-	err = pw.WriteRecord(rec)
-	if err != nil {
-		return err
-	}
-
-	return f.Sync()
+	return nil
 }
 
-// ImportSchema imports an Arrow Schema from an Arrow IPC file.
-func (u *Bodkin) ImportSchema(importPath string) (*arrow.Schema, error) {
-	f, err := os.Open(importPath)
+// ImportSchema imports a serialized Arrow Schema from a file.
+func (u *Bodkin) ImportSchemaFile(importPath string) (*arrow.Schema, error) {
+	dat, err := os.ReadFile(importPath)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	pqr, err := file.OpenParquetFile(importPath, true)
-	if err != nil {
-		return nil, err
-	}
+	return flight.DeserializeSchema(dat, memory.DefaultAllocator)
+}
 
-	fr, err := pqarrow.NewFileReader(pqr, pqarrow.ArrowReadProperties{}, memory.DefaultAllocator)
+// ExportSchemaBytes exports a serialized Arrow Schema.
+func (u *Bodkin) ExportSchemaBytes() ([]byte, error) {
+	schema, err := u.Schema()
 	if err != nil {
 		return nil, err
 	}
-	schema, err := fr.Schema()
-	if schema == nil {
-		return nil, fmt.Errorf("could not import schema from %s : %v", importPath, err)
-	}
-	return schema, nil
+	return flight.SerializeSchema(schema, memory.DefaultAllocator), nil
+}
+
+// ImportSchemaBytes imports a serialized Arrow Schema.
+func (u *Bodkin) ImportSchemaBytes(dat []byte) (*arrow.Schema, error) {
+	return flight.DeserializeSchema(dat, memory.DefaultAllocator)
 }
 
 // Unify merges structured input's column definition with the previously input's schema.

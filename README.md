@@ -14,7 +14,7 @@ Bodkin enables you to use your _data_ to define and evolve your Arrow Schema.
 - Automatically evolves the Arrow schema with new fields when providing new inputs
 - Converts schema field types when unifying schemas to accept evolving input data
 - Tracks changes to the schema
-- Export/import a schema to/from a stub parquet file to persist schema definition
+- Export/import a serialized Arrow schema to/from file or []byte to transmit or persist schema definition
 
 ## 🚀 Install
 
@@ -150,11 +150,15 @@ for rdr.Next() {
 // ]
 ```
 
-Export your schema to a file, then import the file to retrieve the schema
+Export your schema to a file, then import the file to retrieve the schema; or export/import to/from a []byte.
 ```go
- _ = u.ExportSchema("./test.schema")
- imp, _ := u.ImportSchema("./test.schema")
- fmt.Printf("imported %v\n", imp.String())
+_ = u.ExportSchemaFile("./test.schema")
+imp, _ := u.ImportSchemaFile("./test.schema")
+fmt.Printf("imported %v\n", imp.String())
+
+bs, _ := u.ExportSchemaBytes()
+sc, _ := u.ImportSchemaBytes(bs)
+fmt.Printf("imported %v\n", sc.String())
 ```
 
 ## 💫 Show your support

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow/array"
@@ -169,18 +170,27 @@ func main() {
 		fmt.Printf("%v : [%s]\n", e.Issue, e.Dotpath)
 	}
 	fmt.Println(u.Changes())
-	err = u.ExportSchema("./test.schema")
+	bs, err := u.ExportSchemaBytes()
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		imp, err := u.ImportSchema("./test.schema")
+		imp, err := u.ImportSchemaBytes(bs)
 		if err != nil {
 			fmt.Println(err)
 		} else {
 			fmt.Printf("imported %v\n", imp.String())
 		}
 	}
-
+	err = u.ExportSchemaFile("./temp.schema")
+	if err != nil {
+		log.Fatal(err)
+	}
+	sb, err := u.ImportSchemaFile("./temp.schema")
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("deserialized:\n", sb.String())
+	}
 }
 
 var jsonS1 string = `{

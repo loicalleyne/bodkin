@@ -39,7 +39,7 @@ func FromReader(r io.Reader, opts ...bodkin.Option) (*arrow.Schema, int64, error
 	return schema, u.Count(), err
 }
 
-func SchemaFromFile(inputFile string, opts ...bodkin.Option) (*arrow.Schema, int, error) {
+func SchemaFromFile(inputFile string, opts ...bodkin.Option) (*arrow.Schema, int64, error) {
 	f, err := os.Open(inputFile)
 	if err != nil {
 		return nil, 0, err
