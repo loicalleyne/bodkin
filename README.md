@@ -1,4 +1,4 @@
-Bodkin
+Bodkin 🏹
 ===================
 [![Go Reference](https://pkg.go.dev/badge/github.com/loicalleyne/bodkin.svg)](https://pkg.go.dev/github.com/loicalleyne/bodkin)
 
