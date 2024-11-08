@@ -17,6 +17,10 @@ type fieldPos struct {
 	builder      array.Builder
 	name         string
 	path         []string
+	isList       bool
+	isItem       bool
+	isStruct     bool
+	isMap        bool
 	arrowType    arrow.Type
 	typeName     string
 	field        arrow.Field
@@ -123,6 +127,9 @@ func (f *fieldPos) newChild(childName string) *fieldPos {
 		name:   childName,
 		index:  int32(len(f.children)),
 		depth:  f.depth + 1,
+	}
+	if f.isList {
+		child.isItem = true
 	}
 	child.path = child.namePath()
 	child.childmap = make(map[string]*fieldPos)
@@ -292,15 +299,18 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 				f.assignChild(child)
 			} else {
 				child.arrowType = arrow.STRUCT
+				child.isStruct = true
 				f.owner.untypedFields.Set(child.dotPath(), child)
 			}
 		case []any:
 			if len(t) <= 0 {
 				child.arrowType = arrow.LIST
+				child.isList = true
 				f.owner.untypedFields.Set(child.dotPath(), child)
 				f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedArrayElementType, child.namePath()))
 			} else {
 				et := sliceElemType(child, t)
+				child.isList = true
 				child.field = arrow.Field{Name: k, Type: arrow.ListOf(et), Nullable: true}
 				f.assignChild(child)
 			}
@@ -309,6 +319,7 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 			f.owner.untypedFields.Set(child.dotPath(), child)
 			f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedFieldType, child.namePath()))
 		default:
+
 			child.field = arrow.Field{Name: k, Type: goType2Arrow(child, v), Nullable: true}
 			f.assignChild(child)
 		}

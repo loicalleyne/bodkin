@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 )
@@ -22,7 +23,10 @@ func goType2Arrow(f *fieldPos, gt any) arrow.DataType {
 			f.arrowType = arrow.FLOAT64
 			dt = arrow.PrimitiveTypes.Float64
 		}
-	// either 32 or 64 bits
+	case time.Time:
+		f.arrowType = arrow.TIMESTAMP
+		dt = arrow.FixedWidthTypes.Timestamp_us
+		// either 32 or 64 bits
 	case int:
 		f.arrowType = arrow.INT64
 		dt = arrow.PrimitiveTypes.Int64

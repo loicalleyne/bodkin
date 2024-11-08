@@ -4,7 +4,6 @@
 package bodkin
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -15,8 +14,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/flight"
 	"github.com/apache/arrow-go/v18/arrow/memory"
-	"github.com/go-viper/mapstructure/v2"
-	json "github.com/goccy/go-json"
+	"github.com/loicalleyne/bodkin/reader"
 	omap "github.com/wk8/go-ordered-map/v2"
 )
 
@@ -62,7 +60,7 @@ type Bodkin struct {
 // Any uppopulated fields, empty objects or empty slices in JSON or map[string]any inputs are skipped as their
 // types cannot be evaluated and converted.
 func NewBodkin(a any, opts ...Option) (*Bodkin, error) {
-	m, err := InputMap(a)
+	m, err := reader.InputMap(a)
 	if err != nil {
 		return nil, err
 	}
@@ -89,42 +87,6 @@ func newBodkin(m map[string]any, opts ...Option) (*Bodkin, error) {
 	b.old = f
 	b.maxCount = int64(math.MaxInt64)
 	return b, err
-}
-
-// InputMap takes structured input data and attempts to decode it to
-// map[string]any. Input data can be json in string or []byte, or any other
-// Go data type which can be decoded by [MapStructure/v2].
-// [MapStructure/v2]: github.com/go-viper/mapstructure/v2
-func InputMap(a any) (map[string]any, error) {
-	m := map[string]any{}
-	switch input := a.(type) {
-	case nil:
-		return nil, ErrUndefinedInput
-	case map[string]any:
-		return input, nil
-	case []byte:
-		r := bytes.NewReader(input)
-		d := json.NewDecoder(r)
-		d.UseNumber()
-		err := d.Decode(&m)
-		if err != nil {
-			return nil, fmt.Errorf("%v : %v", ErrInvalidInput, err)
-		}
-	case string:
-		r := bytes.NewReader([]byte(input))
-		d := json.NewDecoder(r)
-		d.UseNumber()
-		err := d.Decode(&m)
-		if err != nil {
-			return nil, fmt.Errorf("%v : %v", ErrInvalidInput, err)
-		}
-	default:
-		err := mapstructure.Decode(a, &m)
-		if err != nil {
-			return nil, fmt.Errorf("%v : %v", ErrInvalidInput, err)
-		}
-	}
-	return m, nil
 }
 
 // Returns count of evaluated field paths.
@@ -243,7 +205,7 @@ func (u *Bodkin) Unify(a any) error {
 	if u.unificationCount > u.maxCount {
 		return fmt.Errorf("maxcount exceeded")
 	}
-	m, err := InputMap(a)
+	m, err := reader.InputMap(a)
 	if err != nil {
 		u.err = fmt.Errorf("%v : %v", ErrInvalidInput, err)
 		return fmt.Errorf("%v : %v", ErrInvalidInput, err)
@@ -275,7 +237,7 @@ func (u *Bodkin) UnifyAtPath(a any, mergeAt string) error {
 		return fmt.Errorf("unitfyatpath %s : %v", mergeAt, ErrPathNotFound)
 	}
 
-	m, err := InputMap(a)
+	m, err := reader.InputMap(a)
 	if err != nil {
 		u.err = fmt.Errorf("%v : %v", ErrInvalidInput, err)
 		return fmt.Errorf("%v : %v", ErrInvalidInput, err)

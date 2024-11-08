@@ -24,7 +24,7 @@ go.work.sum
 # env file
 .env
 
-avro/
+avro
 map.go
 *.schema
 *.pgo
