@@ -43,10 +43,12 @@ func InputMap(a any) (map[string]any, error) {
 			return nil, fmt.Errorf("%v : %v", ErrInvalidInput, err)
 		}
 	default:
-		err := mapstructure.Decode(a, &m)
+		ms := New(&EncoderConfig{EncodeHook: mapstructure.RecursiveStructToMapHookFunc()})
+		enc, err := ms.Encode(a)
 		if err != nil {
-			return nil, fmt.Errorf("%v : %v", ErrInvalidInput, err)
+			return nil, fmt.Errorf("Error decoding to map[string]interface{}: %v", err)
 		}
+		return enc.(map[string]any), nil
 	}
 	return m, nil
 }

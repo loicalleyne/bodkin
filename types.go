@@ -116,10 +116,21 @@ func goType2Arrow(f *fieldPos, gt any) arrow.DataType {
 	// the set of all complex numbers with float32 real and imaginary parts
 	case complex64:
 		// TO-DO
+		f.arrowType = arrow.NULL
+		f.err = fmt.Errorf("%v : %v", ErrUndefinedFieldType, f.namePath())
+		dt = arrow.BinaryTypes.Binary
 	// the set of all complex numbers with float64 real and imaginary parts
 	case complex128:
 		// TO-DO
+		f.arrowType = arrow.NULL
+		f.err = fmt.Errorf("%v : %v", ErrUndefinedFieldType, f.namePath())
+		dt = arrow.BinaryTypes.Binary
 	case nil:
+		f.arrowType = arrow.NULL
+		f.err = fmt.Errorf("%v : %v", ErrUndefinedFieldType, f.namePath())
+		dt = arrow.BinaryTypes.Binary
+	default:
+		// Catch-all for exotic unsupported types - ie. input field is a func
 		f.arrowType = arrow.NULL
 		f.err = fmt.Errorf("%v : %v", ErrUndefinedFieldType, f.namePath())
 		dt = arrow.BinaryTypes.Binary

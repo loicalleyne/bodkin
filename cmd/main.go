@@ -26,14 +26,16 @@ type Student struct {
 	ID   int64
 	Day  int32
 	School
+	Addresses []AddressType
 }
 
 func main() {
 	stu := Student{
-		Name: "StudentName",
-		Age:  25,
-		ID:   123456,
-		Day:  123,
+		Name:      "StudentName",
+		Age:       25,
+		ID:        123456,
+		Day:       123,
+		Addresses: []AddressType{{Country: "Azerbijjan"}, {Country: "Zimbabwe"}},
 	}
 	sch := School{
 		Name: "SchoolName",
