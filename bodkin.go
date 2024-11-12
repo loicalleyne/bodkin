@@ -44,6 +44,7 @@ type Bodkin struct {
 	original               *fieldPos
 	old                    *fieldPos
 	new                    *fieldPos
+	r                      *reader.DataReader
 	knownFields            *omap.OrderedMap[string, *fieldPos]
 	untypedFields          *omap.OrderedMap[string, *fieldPos]
 	unificationCount       int64
@@ -53,6 +54,21 @@ type Bodkin struct {
 	typeConversion         bool
 	err                    error
 	changes                error
+}
+
+func (u *Bodkin) NewReader() (*reader.DataReader, error) {
+	schema, err := u.Schema()
+	if err != nil {
+		return nil, err
+	}
+	if schema == nil {
+		return nil, fmt.Errorf("nil schema")
+	}
+	r, err := reader.NewReader(schema, 0)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // NewBodkin returns a new Bodkin value from a structured input.

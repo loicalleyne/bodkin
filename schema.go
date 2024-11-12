@@ -295,7 +295,7 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 				fields = append(fields, c.field)
 			}
 			if len(child.children) != 0 {
-				child.field = arrow.Field{Name: k, Type: arrow.StructOf(fields...), Nullable: true}
+				child.field = buildArrowField(k, arrow.StructOf(fields...), arrow.Metadata{}, true)
 				f.assignChild(child)
 			} else {
 				child.arrowType = arrow.STRUCT
@@ -311,7 +311,7 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 			} else {
 				et := sliceElemType(child, t)
 				child.isList = true
-				child.field = arrow.Field{Name: k, Type: arrow.ListOf(et), Nullable: true}
+				child.field = buildArrowField(k, arrow.ListOf(et), arrow.Metadata{}, true)
 				f.assignChild(child)
 			}
 		case nil:
@@ -319,8 +319,7 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 			f.owner.untypedFields.Set(child.dotPath(), child)
 			f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedFieldType, child.namePath()))
 		default:
-
-			child.field = arrow.Field{Name: k, Type: goType2Arrow(child, v), Nullable: true}
+			child.field = buildArrowField(k, goType2Arrow(child, v), arrow.Metadata{}, true)
 			f.assignChild(child)
 		}
 	}
@@ -337,7 +336,7 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 func sliceElemType(f *fieldPos, v []any) arrow.DataType {
 	switch ft := v[0].(type) {
 	case map[string]any:
-		child := f.newChild(f.name + "_elem")
+		child := f.newChild(f.name + ".elem")
 		mapToArrow(child, ft)
 		var fields []arrow.Field
 		for _, c := range child.children {
@@ -350,7 +349,7 @@ func sliceElemType(f *fieldPos, v []any) arrow.DataType {
 			f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUndefinedArrayElementType, f.namePath()))
 			return arrow.GetExtensionType("skip")
 		}
-		child := f.newChild(f.name + "_elem")
+		child := f.newChild(f.name + ".elem")
 		et := sliceElemType(child, v[0].([]any))
 		f.assignChild(child)
 		return arrow.ListOf(et)
@@ -358,4 +357,17 @@ func sliceElemType(f *fieldPos, v []any) arrow.DataType {
 		return goType2Arrow(f, v)
 	}
 	return nil
+}
+
+func buildArrowField(n string, t arrow.DataType, m arrow.Metadata, nullable bool) arrow.Field {
+	return arrow.Field{
+		Name:     n,
+		Type:     t,
+		Metadata: m,
+		Nullable: nullable,
+	}
+}
+
+func buildTypeMetadata(k, v []string) arrow.Metadata {
+	return arrow.NewMetadata(k, v)
 }

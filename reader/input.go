@@ -1,4 +1,3 @@
-// Package reader contains helpers for reading data and loading to Arrow.
 package reader
 
 import (
