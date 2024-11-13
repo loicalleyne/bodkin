@@ -14,18 +14,10 @@ import (
 	"github.com/loicalleyne/bodkin/pq"
 )
 
-func FromReader(r io.Reader, opts ...bodkin.Option) (*arrow.Schema, int64, error) {
+func FromReader(r io.Reader, opts ...bodkin.Option) (*arrow.Schema, int, error) {
 	var err error
 	s := bufio.NewScanner(r)
-	var u *bodkin.Bodkin
-	if s.Scan() {
-		u, err = bodkin.NewBodkin(s.Bytes(), opts...)
-		if err != nil {
-			return nil, 0, bodkin.ErrInvalidInput
-		}
-	} else {
-		return nil, 0, bodkin.ErrInvalidInput
-	}
+	u := bodkin.NewBodkin(opts...)
 	for s.Scan() {
 		u.Unify(s.Bytes())
 		if u.Count() > u.MaxCount() {
@@ -39,7 +31,7 @@ func FromReader(r io.Reader, opts ...bodkin.Option) (*arrow.Schema, int64, error
 	return schema, u.Count(), err
 }
 
-func SchemaFromFile(inputFile string, opts ...bodkin.Option) (*arrow.Schema, int64, error) {
+func SchemaFromFile(inputFile string, opts ...bodkin.Option) (*arrow.Schema, int, error) {
 	f, err := os.Open(inputFile)
 	if err != nil {
 		return nil, 0, err
