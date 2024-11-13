@@ -83,7 +83,7 @@ func (u *Bodkin) NewReader(opts ...reader.Option) (*reader.DataReader, error) {
 
 // NewBodkin returns a new Bodkin value from a structured input.
 // Input must be a json byte slice or string, a Go struct with exported fields or map[string]any.
-// Any uppopulated fields, empty objects or empty slices in JSON or map[string]any inputs are skipped as their
+// Any unpopulated fields, empty objects or empty slices in JSON or map[string]any inputs are skipped as their
 // types cannot be evaluated and converted.
 func NewBodkin(opts ...Option) *Bodkin {
 	return newBodkin(opts...)
@@ -213,7 +213,7 @@ func (u *Bodkin) ImportSchemaBytes(dat []byte) (*arrow.Schema, error) {
 }
 
 // Unify merges structured input's column definition with the previously input's schema.
-// Any uppopulated fields, empty objects or empty slices in JSON input are skipped.
+// Any unpopulated fields, empty objects or empty slices in JSON input are skipped.
 func (u *Bodkin) Unify(a any) error {
 	if u.unificationCount > u.maxCount {
 		return fmt.Errorf("maxcount exceeded")
@@ -245,7 +245,7 @@ func (u *Bodkin) Unify(a any) error {
 }
 
 // UnifyScan reads from a provided io.Reader and merges each datum's structured input's column definition
-// with the previously input's schema. Any uppopulated fields, empty objects or empty slices
+// with the previously input's schema. Any unpopulated fields, empty objects or empty slices
 // in JSON input are skipped.
 func (u *Bodkin) UnifyScan() error {
 	var err error
@@ -278,7 +278,7 @@ func (u *Bodkin) UnifyScan() error {
 // Unify merges structured input's column definition with the previously input's schema,
 // using a specified valid path as the root. An error is returned if the mergeAt path is
 // not found.
-// Any uppopulated fields, empty objects or empty slices in JSON input are skipped.
+// Any unpopulated fields, empty objects or empty slices in JSON input are skipped.
 func (u *Bodkin) UnifyAtPath(a any, mergeAt string) error {
 	if u.old == nil {
 		return fmt.Errorf("bodkin not initialised")
@@ -353,7 +353,7 @@ func (u *Bodkin) Schema() (*arrow.Schema, error) {
 }
 
 // LastSchema returns the Arrow schema generated from the structure/types of
-// the most recent input. Any uppopulated fields, empty objects or empty slices are skipped.
+// the most recent input. Any unpopulated fields, empty objects or empty slices are skipped.
 // ErrNoLatestSchema if Unify() has never been called. A panic recovery error is returned
 // if the schema could not be created.
 func (u *Bodkin) LastSchema() (*arrow.Schema, error) {
