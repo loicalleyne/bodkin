@@ -15,6 +15,7 @@ Bodkin enables you to use your _data_ to define and evolve your Arrow Schema.
 - Converts schema field types when unifying schemas to accept evolving input data
 - Tracks changes to the schema
 - Export/import a serialized Arrow schema to/from file or []byte to transmit or persist schema definition
+- Custom data loader to load structured data directly to Arrow Records based on inferred schema
 
 ## 🚀 Install
 
@@ -33,7 +34,7 @@ You can import `bodkin` using:
 import "github.com/loicalleyne/bodkin"
 ```
 
-Create a new Bodkin, providing some structured data and print out the resulting Arrow Schema's string representation and field evaluation errors
+Create a new Bodkin, provide some structured data and print out the resulting Arrow Schema's string representation and any field evaluation errors
 ```go
 var jsonS1 string = `{
     "count": 89,
@@ -44,7 +45,8 @@ var jsonS1 string = `{
     "datefield":"1979-01-01",
     "timefield":"01:02:03"
     }`
-u, _ := bodkin.NewBodkin(jsonS1, bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
+u, _ := bodkin.NewBodkin(bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
+u.Unify(jsonS1)
 s, _ := u.OriginSchema()
 fmt.Printf("original input %v\n", s.String())
 for _, e := range u.Err() {
@@ -100,7 +102,7 @@ fmt.Println(u.Changes())
 // changed $timefield : from time64[ns] to utf8
 ```
 
-Also works with Go structs
+Also works with nested Go structs and slices
 ```go
 	stu := Student{
 		Name: "StudentName",
@@ -136,6 +138,13 @@ Also works with Go structs
 //     - Age: type=int32, nullable
 ```
 
+Use a Bodkin Reader to load data to Arrow Records
+```go
+u := bodkin.NewBodkin(bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
+r, _ := u.NewReader()
+rec, _ := r.ReadToRecord([]byte(jsonS1))
+```
+
 Use the generated Arrow schema with Arrow's built-in JSON reader to decode JSON data into Arrow records
 ```go
 rdr = array.NewJSONReader(strings.NewReader(jsonS2), schema)
@@ -164,6 +173,7 @@ fmt.Printf("imported %v\n", sc.String())
 ## 💫 Show your support
 
 Give a ⭐️ if this project helped you!
+Feedback and PRs welcome.
 
 ## License
 
