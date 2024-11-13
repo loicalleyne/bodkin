@@ -7,13 +7,10 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/redpanda-data/benthos/v4/public/bloblang"
-
 	"github.com/loicalleyne/bodkin"
 	j2p "github.com/loicalleyne/bodkin/json2parquet"
 )
 
-var exe *bloblang.Executor
 var cpuprofile = flag.String("cpuprofile", "default.pgo", "write cpu profile to `file`")
 
 func main() {
@@ -23,7 +20,7 @@ func main() {
 	inputFile := flag.String("in", "t.json", "input file")
 	outputFile := flag.String("out", "screens.parquet", "output file")
 	dryRun := flag.Bool("n", false, "only print the schema")
-	lines := flag.Int64("lines", 0, "number of lines from which to infer schema; 0 means whole file is scanned")
+	lines := flag.Int("lines", 0, "number of lines from which to infer schema; 0 means whole file is scanned")
 	flag.Parse()
 	if *inputFile == "" {
 		log.Fatal("no input file specified")

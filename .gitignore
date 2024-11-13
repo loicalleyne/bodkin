@@ -24,8 +24,10 @@ go.work.sum
 # env file
 .env
 
+internal
 avro
 experiments
 map.go
 *.schema
 *.pgo
+debug

@@ -1,1 +1,7 @@
 *.json
+<<<<<<< Updated upstream
+*.bak
+main?.go
+=======
+*.bak
+>>>>>>> Stashed changes
