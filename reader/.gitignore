@@ -1,3 +1,2 @@
-loader.go
 avro.go
 recordfactory.go
