@@ -26,11 +26,6 @@ type (
 	config *Bodkin
 )
 
-type (
-	ReaderOption func(reader.Option)
-	readerConfig *reader.DataReader
-)
-
 // Field represents an element in the input data.
 type Field struct {
 	Dotpath string     `json:"dotpath"`
@@ -49,12 +44,13 @@ const (
 // Bodkin is a collection of field paths, describing the columns of a structured input(s).
 type Bodkin struct {
 	rr                     io.Reader
-	sf                     bufio.SplitFunc
-	sc                     *bufio.Scanner
+	br                     *bufio.Reader
+	delim                  byte
 	original               *fieldPos
 	old                    *fieldPos
 	new                    *fieldPos
-	r                      *reader.DataReader
+	opts                   []Option
+	Reader                 *reader.DataReader
 	knownFields            *omap.OrderedMap[string, *fieldPos]
 	untypedFields          *omap.OrderedMap[string, *fieldPos]
 	unificationCount       int
@@ -66,6 +62,8 @@ type Bodkin struct {
 	changes                error
 }
 
+func (u *Bodkin) Opts() []Option { return u.opts }
+
 func (u *Bodkin) NewReader(opts ...reader.Option) (*reader.DataReader, error) {
 	schema, err := u.Schema()
 	if err != nil {
@@ -74,11 +72,11 @@ func (u *Bodkin) NewReader(opts ...reader.Option) (*reader.DataReader, error) {
 	if schema == nil {
 		return nil, fmt.Errorf("nil schema")
 	}
-	r, err := reader.NewReader(schema, 0, opts...)
+	u.Reader, err = reader.NewReader(schema, 0, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return r, nil
+	return u.Reader, nil
 }
 
 // NewBodkin returns a new Bodkin value from a structured input.
@@ -91,6 +89,7 @@ func NewBodkin(opts ...Option) *Bodkin {
 
 func newBodkin(opts ...Option) *Bodkin {
 	b := &Bodkin{}
+	b.opts = opts
 	for _, opt := range opts {
 		opt(b)
 	}
@@ -182,7 +181,7 @@ func (u *Bodkin) ExportSchemaFile(exportPath string) error {
 		return err
 	}
 	bs := flight.SerializeSchema(schema, memory.DefaultAllocator)
-	err = os.WriteFile("./temp.schema", bs, 0644)
+	err = os.WriteFile(exportPath, bs, 0644)
 	if err != nil {
 		return err
 	}
@@ -261,16 +260,22 @@ func (u *Bodkin) UnifyScan() error {
 		}
 		return u.err
 	}()
-	for u.sc.Scan() {
-		m, err := reader.InputMap(u.sc.Bytes())
+	for {
+		datumBytes, err := u.br.ReadBytes(u.delim)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				u.err = nil
+				break
+			}
+			u.err = err
+			break
+		}
+		m, err := reader.InputMap(datumBytes)
 		if err != nil {
 			u.err = errors.Join(u.err, err)
 			continue
 		}
 		u.Unify(m)
-	}
-	if err := u.sc.Err(); err != nil {
-		u.err = errors.Join(u.err, err)
 	}
 	return u.err
 }
@@ -333,6 +338,8 @@ func (u *Bodkin) OriginSchema() (*arrow.Schema, error) {
 
 // Schema returns the current merged Arrow schema generated from the structure/types of
 // the input(s), and a panic recovery error if the schema could not be created.
+// If the Bodkin has a Reader and the schema has been updated since its creation, the Reader
+// will replaced with a new one matching the current schema. Any
 func (u *Bodkin) Schema() (*arrow.Schema, error) {
 	if u.old == nil {
 		return nil, fmt.Errorf("bodkin not initialised")
@@ -349,6 +356,11 @@ func (u *Bodkin) Schema() (*arrow.Schema, error) {
 		fields = append(fields, c.field)
 	}
 	s = arrow.NewSchema(fields, nil)
+	if u.Reader != nil {
+		if !u.Reader.Schema().Equal(s) {
+			u.Reader, _ = reader.NewReader(s, 0, u.Reader.Opts()...)
+		}
+	}
 	return s, nil
 }
 

@@ -8,14 +8,18 @@ The goal is to provide a useful toolkit to make it easier to use Arrow, and by e
 Bodkin enables you to use your _data_ to define and evolve your Arrow Schema.
 
 ## Features
-
+### Arrow schema generation from data type inference
 - Converts a structured input (json string or []byte, Go struct or map[string]any) into an Apache Arrow schema
-- Supports nested types
+	- Supports nested types 
 - Automatically evolves the Arrow schema with new fields when providing new inputs
+- Option to merge new infered schema at existing path for composibility
 - Converts schema field types when unifying schemas to accept evolving input data
 - Tracks changes to the schema
-- Export/import a serialized Arrow schema to/from file or []byte to transmit or persist schema definition
-- Custom data loader to load structured data directly to Arrow Records based on inferred schema
+- Export/import a serialized Arrow schema to/from file or `[]byte` to transmit or persist schema definition
+### Custom data loader
+- Load structured data directly to Arrow Records based on inferred schema
+	- Individual input to Arrow Record 
+	- io.Reader stream to Arrow Records 	
 
 ## 🚀 Install
 
@@ -138,11 +142,41 @@ Also works with nested Go structs and slices
 //     - Age: type=int32, nullable
 ```
 
+Export your schema to a file, then import the file to retrieve the schema; or export/import to/from a []byte.
+```go
+_ = u.ExportSchemaFile("./test.schema")
+imp, _ := u.ImportSchemaFile("./test.schema")
+fmt.Printf("imported %v\n", imp.String())
+
+bs, _ := u.ExportSchemaBytes()
+sc, _ := u.ImportSchemaBytes(bs)
+fmt.Printf("imported %v\n", sc.String())
+```
+
 Use a Bodkin Reader to load data to Arrow Records
 ```go
 u := bodkin.NewBodkin(bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
-r, _ := u.NewReader()
-rec, _ := r.ReadToRecord([]byte(jsonS1))
+u.Unify(jsonS1)	// feed data for schema generation
+rdr, _ := u.NewReader() // infered schema in Bodkin used to create Reader
+rec, _ := rdr.ReadToRecord([]byte(jsonS1)) // Reader loads data and returns Arrow Record
+```
+
+Provide a Bodkin Reader with an io.Reader to load many records
+```go
+import "github.com/loicalleyne/bodkin/reader"
+...
+u := bodkin.NewBodkin(bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
+// Create Reader attached to Bodkin ...
+u.NewReader(schema, 0, reader.WithIOReader(ff, reader.DefaultDelimiter), reader.WithChunk(1024))
+for u.Reader.Next(){
+	rec := r.Record()
+}
+// or create a stand-alone Reader if you have an existing *arrow.Schema
+rdr, _ := reader.NewReader(schema, 0, reader.WithIOReader(ff, reader.DefaultDelimiter), reader.WithChunk(1024))
+for rdr.Next() {
+	rec := r.Record()
+...
+}
 ```
 
 Use the generated Arrow schema with Arrow's built-in JSON reader to decode JSON data into Arrow records
@@ -157,17 +191,6 @@ for rdr.Next() {
 // marshaled record:
 // [{"arrayscalar":["str"],"count":89.5,"datefield":"2024-10-24 19:03:09Z","datetime":"2024-10-24 19:03:09Z","event_time":"2024-10-24 19:03:09Z","next":"https://sub.domain.com/api/search/?models=thurblig\u0026page=3","previous":"https://sub.domain.com/api/search/?models=thurblig\u0026page=2","results":[{"id":7594,"nested":{"nestedarray":[123,456],"strscalar":"str1"},"scalar":241.5}],"timefield":"1970-01-01"}
 // ]
-```
-
-Export your schema to a file, then import the file to retrieve the schema; or export/import to/from a []byte.
-```go
-_ = u.ExportSchemaFile("./test.schema")
-imp, _ := u.ImportSchemaFile("./test.schema")
-fmt.Printf("imported %v\n", imp.String())
-
-bs, _ := u.ExportSchemaBytes()
-sc, _ := u.ImportSchemaBytes(bs)
-fmt.Printf("imported %v\n", sc.String())
 ```
 
 ## 💫 Show your support

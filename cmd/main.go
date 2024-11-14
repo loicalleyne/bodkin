@@ -8,62 +8,68 @@ import (
 	"time"
 
 	"github.com/loicalleyne/bodkin"
+	"github.com/loicalleyne/bodkin/reader"
 )
 
 func main() {
 	start := time.Now()
-	filepath := "github.json"
+	filepath := "large-file.json"
 	log.Println("start")
-	f, err := os.Open(filepath)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	s := bufio.NewScanner(f)
-	u := bodkin.NewBodkin(bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
-	if err != nil {
-		panic(err)
-	}
+	var u *bodkin.Bodkin
+	if 1 == 1 {
+		f, err := os.Open(filepath)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		s := bufio.NewScanner(f)
+		u = bodkin.NewBodkin(bodkin.WithInferTimeUnits(), bodkin.WithTypeConversion())
+		if err != nil {
+			panic(err)
+		}
 
-	for s.Scan() {
-		err = u.Unify(s.Bytes())
+		for s.Scan() {
+			err = u.Unify(s.Bytes())
+			if err != nil {
+				panic(err)
+			}
+		}
+		f.Close()
+		err = u.ExportSchemaFile("temp.bak")
 		if err != nil {
 			panic(err)
 		}
 	}
-	f.Close()
-	schema, err := u.Schema()
-	if err != nil {
-		panic(err)
-	}
-	log.Printf("union %v\n", schema.String())
-	log.Printf("elapsed: %v\n", time.Since(start))
-
-	ff, err := os.Open(filepath)
-	if err != nil {
-		panic(err)
-	}
-	defer ff.Close()
-	r, err := u.NewReader()
-	if err != nil {
-		panic(err)
-	}
-	i := 0
-	s = bufio.NewScanner(ff)
-	for s.Scan() {
-		rec, err := r.ReadToRecord(s.Bytes())
+	if 1 == 1 {
+		schema, err := u.ImportSchemaFile("temp.bak")
 		if err != nil {
 			panic(err)
 		}
-		_, err = rec.MarshalJSON()
+		ff, err := os.Open(filepath)
 		if err != nil {
-			fmt.Printf("error marshaling record: %v\n", err)
+			panic(err)
 		}
-		// fmt.Printf("\nmarshaled record :\n%v\n", string(rj))
-		i++
-	}
+		defer ff.Close()
+		r, err := reader.NewReader(schema, 0, reader.WithIOReader(ff, reader.DefaultDelimiter), reader.WithChunk(1024*16))
+		if err != nil {
+			panic(err)
+		}
 
-	log.Println("records", i)
+		log.Printf("union %v\n", schema.String())
+		log.Printf("elapsed: %v\n", time.Since(start))
+
+		i := 0
+		for r.Next() {
+			rec := r.Record()
+			_, err := rec.MarshalJSON()
+			if err != nil {
+				fmt.Printf("error marshaling record: %v\n", err)
+			}
+			// fmt.Printf("\nmarshaled record :\n%v\n", string(rj))
+			i++
+		}
+		log.Println("records", r.Count(), i)
+	}
 	log.Printf("elapsed: %v\n", time.Since(start))
 	log.Println("end")
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"sync/atomic"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -23,6 +24,11 @@ const (
 	DataSourceJSON
 	DataSourceAvro
 )
+const (
+	Manual int = iota
+	Scanner
+)
+const DefaultDelimiter byte = byte('\n')
 
 // Option configures an Avro reader/writer.
 type (
@@ -32,13 +38,14 @@ type (
 
 type DataReader struct {
 	rr               io.Reader
-	sf               bufio.SplitFunc
-	sc               *bufio.Scanner
+	br               *bufio.Reader
+	delim            byte
 	refs             int64
 	source           DataSource
 	schema           *arrow.Schema
 	bld              *array.RecordBuilder
 	mem              memory.Allocator
+	opts             []Option
 	bldMap           *fieldPos
 	ldr              *dataLoader
 	cur              arrow.Record
@@ -49,11 +56,14 @@ type DataReader struct {
 	recChan          chan arrow.Record
 	recReq           chan struct{}
 	bldDone          chan struct{}
+	inputLock        atomic.Int32
+	factoryLock      atomic.Int32
+	wg               sync.WaitGroup
 	jsonDecode       bool
 	chunk            int
+	inputCount       int
 	inputBufferSize  int
 	recordBufferSize int
-	countInput       int
 }
 
 func NewReader(schema *arrow.Schema, source DataSource, opts ...Option) (*DataReader, error) {
@@ -70,6 +80,8 @@ func NewReader(schema *arrow.Schema, source DataSource, opts ...Option) (*DataRe
 		inputBufferSize:  1024 * 64,
 		recordBufferSize: 1024 * 64,
 		chunk:            0,
+		delim:            DefaultDelimiter,
+		opts:             opts,
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -81,6 +93,10 @@ func NewReader(schema *arrow.Schema, source DataSource, opts ...Option) (*DataRe
 	r.recReq = make(chan struct{}, 100)
 	r.readerCtx, r.readCancel = context.WithCancel(context.Background())
 
+	if r.rr != nil {
+		r.wg.Add(1)
+		go r.decode2Chan()
+	}
 	r.bld = array.NewRecordBuilder(memory.DefaultAllocator, schema)
 	r.bldMap = newFieldPos()
 	r.bldMap.isStruct = true
@@ -91,6 +107,7 @@ func NewReader(schema *arrow.Schema, source DataSource, opts ...Option) (*DataRe
 	}
 	r.ldr.drawTree(r.bldMap)
 	go r.recordFactory()
+	r.wg.Add(1)
 	return r, nil
 }
 
@@ -130,6 +147,55 @@ func (r *DataReader) ReadToRecord(a any) (arrow.Record, error) {
 	return r.bld.NewRecord(), nil
 }
 
+// Next returns whether a Record can be received from the converted record queue.
+// The user should check Err() after a call to Next that returned false to check
+// if an error took place.
+func (r *DataReader) Next() bool {
+	var ok bool
+	if r.cur != nil {
+		r.cur.Release()
+		r.cur = nil
+	}
+
+	r.wg.Wait()
+	select {
+	case r.cur, ok = <-r.recChan:
+		if !ok && r.cur == nil {
+			return false
+		}
+	case <-r.bldDone:
+		if len(r.recChan) > 0 {
+			r.cur = <-r.recChan
+		}
+	case <-r.readerCtx.Done():
+		return false
+	}
+	if r.err != nil {
+		return false
+	}
+
+	return r.cur != nil
+}
+
+func (r *DataReader) Mode() int {
+	switch r.rr {
+	case nil:
+		return Manual
+	default:
+		return Scanner
+	}
+}
+
+func (r *DataReader) Count() int             { return r.inputCount }
+func (r *DataReader) ResetCount()            { r.inputCount = 0 }
+func (r *DataReader) InputBufferSize() int   { return r.inputBufferSize }
+func (r *DataReader) RecBufferSize() int     { return r.recordBufferSize }
+func (r *DataReader) DataSource() DataSource { return r.source }
+func (r *DataReader) Opts() []Option         { return r.opts }
+
+// Record returns the current Arrow record.
+// It is valid until the next call to Next.
+func (r *DataReader) Record() arrow.Record  { return r.cur }
 func (r *DataReader) Schema() *arrow.Schema { return r.schema }
 
 // Err returns the last error encountered during the reading of data.
@@ -152,4 +218,55 @@ func (r *DataReader) Release() {
 			r.cur.Release()
 		}
 	}
+}
+
+// Peek returns the length of the input data and Arrow Record queues.
+func (r *DataReader) Peek() (int, int) {
+	return len(r.anyChan), len(r.recChan)
+}
+
+// Cancel cancels the Reader's io.Reader scan to Arrow.
+func (r *DataReader) Cencel() {
+	r.readCancel()
+}
+
+// Read loads one datum.
+// If the Reader has an io.Reader, Read is a no-op.
+func (r *DataReader) Read(a any) error {
+	if r.rr != nil {
+		return nil
+	}
+	var err error
+	defer func() error {
+		if rc := recover(); rc != nil {
+			r.err = errors.Join(r.err, fmt.Errorf("panic %v", rc))
+		}
+		return r.err
+	}()
+	m, err := InputMap(a)
+	if err != nil {
+		r.err = errors.Join(r.err, err)
+		return err
+	}
+	r.anyChan <- m
+	r.inputCount++
+	return nil
+}
+
+// Reset resets a Reader to its initial state.
+func (r *DataReader) Reset() {
+	r.readCancel()
+	r.anyChan = make(chan any, r.inputBufferSize)
+	r.recChan = make(chan arrow.Record, r.recordBufferSize)
+	r.bldDone = make(chan struct{})
+	r.inputCount = 0
+
+	// DataReader has an io.Reader
+	if r.rr != nil {
+		r.br.Reset(r.rr)
+		go r.decode2Chan()
+		r.wg.Add(1)
+	}
+	go r.recordFactory()
+	r.wg.Add(1)
 }

@@ -45,14 +45,15 @@ func WithMaxCount(i int) Option {
 	}
 }
 
-// WithIOReader provides an io.Reader for a Bodkin to use with UnifyScan().
-// A bufio.SplitFunc can optionally be provided, otherwise the default
-// ScanLines will be used.
-func WithIOReader(r io.Reader, sf bufio.SplitFunc) Option {
+// WithIOReader provides an io.Reader for a Bodkin to use with UnifyScan(), along
+// with a delimiter to use to split datum in the data stream.
+// Default delimiter '\n' if delimiter is not provided.
+func WithIOReader(r io.Reader, delim byte) Option {
 	return func(cfg config) {
 		cfg.rr = r
-		if sf != nil {
-			cfg.sf = sf
+		cfg.br = bufio.NewReaderSize(cfg.rr, 1024*16)
+		if delim != '\n' {
+			cfg.delim = delim
 		}
 	}
 }
