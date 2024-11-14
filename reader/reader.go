@@ -181,7 +181,8 @@ func (r *DataReader) NextBatch(batchSize int) bool {
 			}
 		case <-r.bldDone:
 			if len(r.recChan) > 0 {
-				r.cur = <-r.recChan
+				rec := <-r.recChan
+				r.curBatch = append(r.curBatch, rec)
 			}
 		case <-r.readerCtx.Done():
 			return false

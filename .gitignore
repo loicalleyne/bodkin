@@ -26,6 +26,7 @@ go.work.sum
 
 internal
 avro
+pochard
 experiments
 map.go
 *.schema

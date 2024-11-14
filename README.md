@@ -4,22 +4,26 @@ Bodkin 🏹
 
 Go library for generating schemas and decoding generic map values and native Go structures to Apache Arrow. 
 
-The goal is to provide a useful toolkit to make it easier to use Arrow, and by extension Parquet, especially on data whose schema is evolving or not strictly defined. An example would be with working with data retrieved from a 3rd-party API that does not maintain their OpenAPI spec.
+The goal is to provide a useful toolkit to make it easier to use Arrow, and by extension Parquet, especially on data whose schema is evolving or not strictly defined. 
+An example would be with working with data retrieved from a 3rd-party API that does not maintain their OpenAPI spec.
+
 Bodkin enables you to use your _data_ to define and evolve your Arrow Schema.
 
 ## Features
 ### Arrow schema generation from data type inference
 - Converts a structured input (json string or []byte, Go struct or map[string]any) into an Apache Arrow schema
 	- Supports nested types 
-- Automatically evolves the Arrow schema with new fields when providing new inputs
-- Option to merge new infered schema at existing path for composibility
-- Converts schema field types when unifying schemas to accept evolving input data
-- Tracks changes to the schema
-- Export/import a serialized Arrow schema to/from file or `[]byte` to transmit or persist schema definition
+- Automatically evolves the Arrow schema with new fields when providing [new inputs](https://pkg.go.dev/github.com/loicalleyne/bodkin#Bodkin.Unify)
+- Option to merge new infered schema at existing path for composibility ([bodkin.UnifyAtPath](https://pkg.go.dev/github.com/loicalleyne/bodkin#Bodkin.UnifyAtPath))
+- Converts schema field types when unifying schemas to accept evolving input data ([bodkin.WithTypeConversion](https://pkg.go.dev/github.com/loicalleyne/bodkin#WithTypeConversion))
+- Tracks [changes](https://pkg.go.dev/github.com/loicalleyne/bodkin#Bodkin.Changes) to the schema
+- [Export](https://pkg.go.dev/github.com/loicalleyne/bodkin#Bodkin.ExportSchemaFile)/[import](https://pkg.go.dev/github.com/loicalleyne/bodkin#Bodkin.ImportSchemaFile) a serialized Arrow schema to/from file or `[]byte` to transmit or persist schema definition
 ### Custom data loader
 - Load structured data directly to Arrow Records based on inferred schema
-	- Individual input to Arrow Record 
-	- io.Reader stream to Arrow Records 	
+	- Individual input to Arrow Record with [reader.ReadToRecord](https://pkg.go.dev/github.com/loicalleyne/bodkin/reader#DataReader.ReadToRecord)
+	- io.Reader stream to Arrow Records ([bodkin.WithIOReader](https://pkg.go.dev/github.com/loicalleyne/bodkin#WithIOReader))
+		- retrieve a single `arrow.Record` with [reader.Next](https://pkg.go.dev/github.com/loicalleyne/bodkin/reader#DataReader.Next)
+		- retrieve a `[]arrow.Record` with [reader.NextBatch](https://pkg.go.dev/github.com/loicalleyne/bodkin/reader#DataReader.NextBatch)
 
 ## 🚀 Install
 
