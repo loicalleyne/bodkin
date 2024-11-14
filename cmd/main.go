@@ -59,14 +59,25 @@ func main() {
 		log.Printf("elapsed: %v\n", time.Since(start))
 
 		i := 0
-		for r.Next() {
-			rec := r.Record()
-			_, err := rec.MarshalJSON()
-			if err != nil {
-				fmt.Printf("error marshaling record: %v\n", err)
+		// for r.Next() {
+		// 	rec := r.Record()
+		// 	_, err := rec.MarshalJSON()
+		// 	if err != nil {
+		// 		fmt.Printf("error marshaling record: %v\n", err)
+		// 	}
+		// 	// fmt.Printf("\nmarshaled record :\n%v\n", string(rj))
+		// 	i++
+		// }
+		for r.NextBatch(1024) {
+			recs := r.RecordBatch()
+			for _, rec := range recs {
+				_, err := rec.MarshalJSON()
+				if err != nil {
+					fmt.Printf("error marshaling record: %v\n", err)
+				}
+				// fmt.Printf("\nmarshaled record :\n%v\n", string(rj))
+				i++
 			}
-			// fmt.Printf("\nmarshaled record :\n%v\n", string(rj))
-			i++
 		}
 		log.Println("records", r.Count(), i)
 	}
