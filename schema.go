@@ -216,7 +216,7 @@ func (f *fieldPos) graft(n *fieldPos) {
 		var nf []arrow.Field
 		nf = append(nf, gf.Fields()...)
 		nf = append(nf, graft.field)
-		f.field = arrow.Field{Name: graft.name, Type: arrow.StructOf(nf...), Nullable: true}
+		f.field = arrow.Field{Name: f.name, Type: arrow.StructOf(nf...), Nullable: true}
 		if (f.parent != nil) && f.parent.field.Type.ID() == arrow.LIST {
 			f.parent.field = arrow.Field{Name: f.parent.name, Type: arrow.ListOf(f.field.Type.(*arrow.StructType)), Nullable: true}
 		}

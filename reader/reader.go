@@ -279,7 +279,7 @@ func (r *DataReader) Peek() (int, int) {
 }
 
 // Cancel cancels the Reader's io.Reader scan to Arrow.
-func (r *DataReader) Cencel() {
+func (r *DataReader) Cancel() {
 	r.readCancel()
 }
 
