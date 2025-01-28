@@ -7,7 +7,7 @@ toolchain go1.23.1
 require (
 	github.com/apache/arrow-go/v18 v18.1.0
 	github.com/go-viper/mapstructure/v2 v2.2.1
-	github.com/goccy/go-json v0.10.4
+	github.com/goccy/go-json v0.10.5
 	github.com/redpanda-data/benthos/v4 v4.43.0
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 )
