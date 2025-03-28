@@ -64,6 +64,15 @@ type Bodkin struct {
 
 func (u *Bodkin) Opts() []Option { return u.opts }
 
+// GetReader returns a DataReader, will return an existing DataReader if it exists, if not it will create a new one. If the Reader already exists, the opts are ignored. If you want to create a new Reader with different opts, use NewReader.
+func (u *Bodkin) GetReader(opts ...reader.Option) (*reader.DataReader, error) {
+	if u.Reader == nil {
+		return u.NewReader(opts...)
+	}
+	return u.Reader, nil
+}
+
+// NewReader returns a new DataReader, to be used to read structured input into Arrow records.
 func (u *Bodkin) NewReader(opts ...reader.Option) (*reader.DataReader, error) {
 	schema, err := u.Schema()
 	if err != nil {
