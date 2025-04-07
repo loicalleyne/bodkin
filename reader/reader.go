@@ -92,8 +92,9 @@ func NewReader(schema *arrow.Schema, source DataSource, opts ...Option) (*DataRe
 	r.recChan = make(chan arrow.Record, r.recordBufferSize)
 	r.bldDone = make(chan struct{})
 	r.recReq = make(chan struct{}, 100)
-	r.readerCtx, r.readCancel = context.WithCancel(context.Background())
-
+	if r.readerCtx == nil {
+		r.readerCtx, r.readCancel = context.WithCancel(context.Background())
+	}
 	if r.rr != nil {
 		r.wg.Add(1)
 		go r.decode2Chan()

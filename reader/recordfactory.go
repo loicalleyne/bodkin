@@ -98,8 +98,7 @@ func (r *DataReader) recordFactory() {
 			}
 			select {
 			case <-r.readerCtx.Done():
-				r.bldDone <- struct{}{}
-				return
+				break
 			default:
 			}
 		}

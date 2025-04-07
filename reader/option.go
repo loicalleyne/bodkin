@@ -2,6 +2,7 @@ package reader
 
 import (
 	"bufio"
+	"context"
 	"io"
 
 	"github.com/apache/arrow-go/v18/arrow/memory"
@@ -31,6 +32,15 @@ func WithJSONDecoder() Option {
 func WithChunk(n int) Option {
 	return func(cfg config) {
 		cfg.chunk = n
+	}
+}
+
+// WithContext specifies the context used while reading data to Arrow records.
+// Calling reader.Cancel() will cancel the context and stop reading data. The Reader
+// will still be able to produce a record if any data is still in the buffer.
+func WithContext(ctx context.Context) Option {
+	return func(cfg config) {
+		cfg.readerCtx, cfg.readCancel = context.WithCancel(ctx)
 	}
 }
 
