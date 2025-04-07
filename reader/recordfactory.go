@@ -98,7 +98,9 @@ func (r *DataReader) recordFactory() {
 			}
 			select {
 			case <-r.readerCtx.Done():
-				break
+				if len(r.anyChan) == 0 {
+					break
+				}
 			default:
 			}
 		}
