@@ -222,6 +222,10 @@ func (r *DataReader) Next() bool {
 			r.cur = <-r.recChan
 		}
 	case <-r.readerCtx.Done():
+		if len(r.recChan) > 0 {
+			r.cur = <-r.recChan
+			break
+		}
 		return false
 	}
 	if r.err != nil {
