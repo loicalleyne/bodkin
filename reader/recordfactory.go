@@ -98,9 +98,9 @@ func (r *DataReader) recordFactory() {
 			}
 			select {
 			case <-r.readerCtx.Done():
-				if len(r.anyChan) == 0 {
-					break
-				}
+				r.recChan <- r.bld.NewRecord()
+				r.bldDone <- struct{}{}
+				return
 			default:
 			}
 		}
