@@ -36,8 +36,7 @@ func WithChunk(n int) Option {
 }
 
 // WithContext specifies the context used while reading data to Arrow records.
-// Calling reader.Cancel() will cancel the context and stop reading data. The Reader
-// will still be able to produce a record if any data is still in the buffer.
+// Calling reader.Cancel() will cancel the context and stop reading data.
 func WithContext(ctx context.Context) Option {
 	return func(cfg config) {
 		cfg.readerCtx, cfg.readCancel = context.WithCancel(ctx)
