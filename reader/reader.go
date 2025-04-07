@@ -107,8 +107,9 @@ func NewReader(schema *arrow.Schema, source DataSource, opts ...Option) (*DataRe
 		mapFieldBuilders(fb, schema.Field(idx), r.bldMap)
 	}
 	r.ldr.drawTree(r.bldMap)
-	go r.recordFactory()
 	r.wg.Add(1)
+	go r.recordFactory()
+
 	return r, nil
 }
 
@@ -207,6 +208,9 @@ func (r *DataReader) Next() bool {
 		r.cur = nil
 	}
 	r.wg.Wait()
+	if r.chunk < 1 {
+		r.recReq <- struct{}{}
+	}
 	select {
 	case r.cur, ok = <-r.recChan:
 		if !ok && r.cur == nil {
