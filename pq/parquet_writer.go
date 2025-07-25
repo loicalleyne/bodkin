@@ -116,6 +116,7 @@ func (pw *ParquetWriter) Write(jsonData []byte) error {
 	return nil
 }
 
+// WriteRecord writes a single Arrow record to the Parquet file.
 func (pw *ParquetWriter) WriteRecord(rec arrow.Record) error {
 	err := pw.pqwrt.WriteBuffered(rec)
 	if err != nil {

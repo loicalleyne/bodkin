@@ -108,7 +108,11 @@ func newBodkin(opts ...Option) *Bodkin {
 	// Ordered map of known fields, keys are field dotpaths.
 	b.knownFields = omap.New[string, *fieldPos]()
 	b.untypedFields = omap.New[string, *fieldPos]()
-	b.maxCount = math.MaxInt
+	if b.maxCount <= 0 {
+		// Default maxCount is math.MaxInt, which is the maximum number of datum to be evaluated for schema.
+		// This can be overridden with WithMaxCount option.
+		b.maxCount = math.MaxInt
+	}
 	return b
 }
 
