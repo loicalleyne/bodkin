@@ -60,6 +60,8 @@ type Bodkin struct {
 	typeConversion         bool
 	err                    error
 	changes                error
+	checkForUnion          bool
+	useVariantForUnions    bool
 }
 
 func (u *Bodkin) Opts() []Option { return u.opts }

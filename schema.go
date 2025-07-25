@@ -3,11 +3,13 @@ package bodkin
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"slices"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
+	"github.com/apache/arrow-go/v18/arrow/extensions"
 )
 
 type fieldPos struct {
@@ -43,6 +45,7 @@ var (
 	ErrPathNotFound              = errors.New("path not found")
 	ErrFieldTypeChanged          = errors.New("changed")
 	ErrFieldAdded                = errors.New("added")
+	ErrUnionTypeFound            = errors.New("union type found")
 )
 
 // UpgradableTypes are scalar types that can be upgraded to a more flexible type.
@@ -334,6 +337,21 @@ func mapToArrow(f *fieldPos, m map[string]any) {
 // sliceElemType evaluates the slice type and returns an Arrow DataType
 // to be used in building an Arrow Field.
 func sliceElemType(f *fieldPos, v []any) arrow.DataType {
+	if f.owner.checkForUnion && len(v) > 1 {
+		// using reflect, check that all elements of v are of the same type
+		// if not, if useVariantForUnions is true, return a Variant type
+		// otherwise return an error via f.err
+		elem0Type := reflect.TypeOf(v[0])
+		for _, elem := range v[1:] {
+			if reflect.TypeOf(elem) != elem0Type && reflect.TypeOf(elem) != nil {
+				if f.owner.useVariantForUnions {
+					return extensions.NewDefaultVariantType()
+				}
+				f.err = errors.Join(f.err, fmt.Errorf("%v : %v", ErrUnionTypeFound, f.namePath()))
+				return arrow.GetExtensionType("skip")
+			}
+		}
+	}
 	switch ft := v[0].(type) {
 	case map[string]any:
 		child := f.newChild(f.name + ".elem")

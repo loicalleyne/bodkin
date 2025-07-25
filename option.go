@@ -31,14 +31,29 @@ func WithTypeConversion() Option {
 	}
 }
 
-// WithTypeConversion enables upgrading the column types to fix compatibilty conflicts.
+// WithCheckForUnion enables checking for list element Union types in the input data.
+func WithCheckForUnion() Option {
+	return func(cfg config) {
+		cfg.checkForUnion = true
+	}
+}
+
+// WithUseVariantForUnions enables using the Variant type as list element type
+// for lists containing Union types in the input data.
+func WithUseVariantForUnions() Option {
+	return func(cfg config) {
+		cfg.useVariantForUnions = true
+	}
+}
+
+// WithQuotedValuesAreStrings enables handling quoted values as strings.
 func WithQuotedValuesAreStrings() Option {
 	return func(cfg config) {
 		cfg.quotedValuesAreStrings = true
 	}
 }
 
-// WithMaxCount enables capping the number of Unify evaluations.
+// WithMaxCount enables capping the number records to use in Unify evaluations.
 func WithMaxCount(i int) Option {
 	return func(cfg config) {
 		cfg.maxCount = i
