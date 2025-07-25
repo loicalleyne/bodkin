@@ -91,7 +91,7 @@ func RecordsFromFile(inputFile, outputFile string, schema *arrow.Schema, munger 
 		if err != nil {
 			err = errors.Join(err, fmt.Errorf("failed to write parquet record: %v", err1))
 		}
-		n = n + chunk
+		n = n + int(rec.NumRows())
 	}
 	if err := rdr.Err(); err != nil {
 		return n, err

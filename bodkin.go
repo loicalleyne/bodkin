@@ -90,7 +90,7 @@ func (u *Bodkin) NewReader(opts ...reader.Option) (*reader.DataReader, error) {
 	return u.Reader, nil
 }
 
-// NewBodkin returns a new Bodkin value from a structured input.
+// NewBodkin returns a new Bodkin; pass structured data to its Unify or UnifyScan methods to infer an Arrow schema.
 // Input must be a json byte slice or string, a Go struct with exported fields or map[string]any.
 // Any unpopulated fields, empty objects or empty slices in JSON or map[string]any inputs are skipped as their
 // types cannot be evaluated and converted.
@@ -242,6 +242,7 @@ func (u *Bodkin) Unify(a any) error {
 		f := newFieldPos(u)
 		mapToArrow(f, m)
 		u.old = f
+		u.unificationCount++
 		return nil
 	}
 	f := newFieldPos(u)
