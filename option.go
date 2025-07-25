@@ -67,7 +67,10 @@ func WithIOReader(r io.Reader, delim byte) Option {
 	return func(cfg config) {
 		cfg.rr = r
 		cfg.br = bufio.NewReaderSize(cfg.rr, 1024*16)
-		if delim != '\n' {
+		switch delim {
+		case '\n':
+			cfg.delim = '\n'
+		default:
 			cfg.delim = delim
 		}
 	}

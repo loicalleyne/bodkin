@@ -276,6 +276,12 @@ func (u *Bodkin) UnifyScan() error {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				u.err = nil
+				m, err := reader.InputMap(datumBytes)
+				if err != nil {
+					u.err = errors.Join(u.err, err)
+					break
+				}
+				u.Unify(m)
 				break
 			}
 			u.err = err
