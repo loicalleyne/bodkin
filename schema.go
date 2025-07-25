@@ -176,7 +176,7 @@ func (f *fieldPos) namePath() []string {
 
 // namePath returns the path to the field in json dot notation
 func (f *fieldPos) dotPath() string {
-	var path string = "$"
+	var path string = "$."
 	for i, p := range f.path {
 		path = path + p
 		if i+1 != len(f.path) {

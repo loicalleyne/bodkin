@@ -281,23 +281,13 @@ func (u *Bodkin) UnifyScan() error {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				u.err = nil
-				m, err := reader.InputMap(datumBytes)
-				if err != nil {
-					u.err = errors.Join(u.err, err)
-					break
-				}
-				u.Unify(m)
+				u.Unify(datumBytes)
 				break
 			}
 			u.err = err
 			break
 		}
-		m, err := reader.InputMap(datumBytes)
-		if err != nil {
-			u.err = errors.Join(u.err, err)
-			continue
-		}
-		u.Unify(m)
+		u.Unify(datumBytes)
 	}
 	return u.err
 }
@@ -423,13 +413,22 @@ func (u *Bodkin) merge(n *fieldPos, mergeAt []string) {
 		nParentPath = n.parent.path
 	}
 	if kin, err := u.old.getPath(nPath); err == ErrPathNotFound {
-		// root graft
-		if n.root == n.parent {
-			u.old.root.graft(n)
+		if len(mergeAt) <= 1 {
+			// root graft
+			if n.root == n.parent {
+				u.old.root.graft(n)
+			} else {
+				// branch graft
+				b, _ := u.old.getPath(nParentPath)
+				b.graft(n)
+			}
 		} else {
-			// branch graft
-			b, _ := u.old.getPath(nParentPath)
-			b.graft(n)
+			if b, err := u.old.getPath(nParentPath[1:]); err == nil {
+				// graft at mergeAt path
+				b.graft(n)
+			} else {
+				u.err = errors.Join(u.err, fmt.Errorf("merge %s : %v", n.dotPath(), err))
+			}
 		}
 	} else {
 		if u.typeConversion && (!kin.field.Equal(n.field) && kin.field.Type.ID() != n.field.Type.ID()) {
