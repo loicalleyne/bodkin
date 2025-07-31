@@ -33,6 +33,7 @@ var (
 	ErrNullStructData = errors.New("null struct data")
 )
 
+// newDataLoader initializes a new dataLoader instance.
 func newDataLoader() *dataLoader { return &dataLoader{idx: 0, depth: 0} }
 
 // drawTree takes the tree of field builders produced by mapFieldBuilders()

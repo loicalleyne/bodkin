@@ -67,6 +67,7 @@ type DataReader struct {
 	recordBufferSize int
 }
 
+// NewReader creates a new DataReader for reading data from a source and converting it to Arrow records.
 func NewReader(schema *arrow.Schema, source DataSource, opts ...Option) (*DataReader, error) {
 	switch source {
 	case DataSourceGo, DataSourceJSON, DataSourceAvro:
@@ -244,12 +245,29 @@ func (r *DataReader) Mode() int {
 	}
 }
 
-func (r *DataReader) Count() int             { return r.inputCount }
-func (r *DataReader) ResetCount()            { r.inputCount = 0 }
-func (r *DataReader) InputBufferSize() int   { return r.inputBufferSize }
-func (r *DataReader) RecBufferSize() int     { return r.recordBufferSize }
+// Count returns the number of input data items read so far.
+// It is not the number of records returned by Next() or NextBatch().
+// It is the number of items read from the input source.
+// This is useful for debugging and monitoring the reading process.
+func (r *DataReader) Count() int { return r.inputCount }
+
+// ResetCount resets the input count to zero.
+func (r *DataReader) ResetCount() { r.inputCount = 0 }
+
+// InputBufferSize returns the size of the input data channel buffer.
+// This is the number of items that can be buffered before blocking on input.
+func (r *DataReader) InputBufferSize() int { return r.inputBufferSize }
+
+// RecordBufferSize returns the size of the record channel buffer.
+// This is the number of records that can be buffered before blocking on output.
+func (r *DataReader) RecBufferSize() int { return r.recordBufferSize }
+
+// DataSource returns the data source type of the Reader.
+// This is useful for debugging and monitoring the reading process.
 func (r *DataReader) DataSource() DataSource { return r.source }
-func (r *DataReader) Opts() []Option         { return r.opts }
+
+// Opts returns the options used to create the DataReader.
+func (r *DataReader) Opts() []Option { return r.opts }
 
 // Record returns the current Arrow record.
 // It is valid until the next call to Next.
@@ -258,7 +276,9 @@ func (r *DataReader) Record() arrow.Record { return r.cur }
 // Record returns the current Arrow record batch.
 // It is valid until the next call to NextBatch.
 func (r *DataReader) RecordBatch() []arrow.Record { return r.curBatch }
-func (r *DataReader) Schema() *arrow.Schema       { return r.schema }
+
+// Schema returns the Arrow schema of the Reader.
+func (r *DataReader) Schema() *arrow.Schema { return r.schema }
 
 // Err returns the last error encountered during the reading of data.
 func (r *DataReader) Err() error { return r.err }
