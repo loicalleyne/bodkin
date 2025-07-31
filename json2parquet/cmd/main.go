@@ -17,7 +17,7 @@ func main() {
 	inferMode := flag.Bool("infer_timeunits", true, "Infer date, time and timestamps from strings")
 	quotedValuesAreStrings := flag.Bool("quoted_values_are_strings", false, "Treat quoted bool, float and integer values as strings")
 	withTypeConversion := flag.Bool("type_conversion", false, "upgrade field types if data changes")
-	inputFile := flag.String("in", "s.json", "input file")
+	inputFile := flag.String("in", "o.json", "input file")
 	outputFile := flag.String("out", "t.parquet", "output file")
 	dryRun := flag.Bool("n", false, "only print the schema")
 	lines := flag.Int("lines", 0, "number of lines from which to infer schema; 0 means whole file is scanned")

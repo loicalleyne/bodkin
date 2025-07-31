@@ -1,6 +1,7 @@
 package bodkin
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -64,6 +65,42 @@ func TestSchemaInference_DeeplyNestedStructTypes(t *testing.T) {
 					Nullable: true,
 				},
 			),
+			Nullable: true,
+		},
+	}
+
+	compareSchemas(t, expectedFields, schema.Fields())
+}
+
+func TestSchemaInference_JSONArray(t *testing.T) {
+	jsonInput := `{
+        "array_field": [1, 2, 3, 4, 5],
+		"array_field2": []
+    }`
+
+	jsonInput2 := `{
+		"array_field2": [42, 43, 44]
+    }`
+	b := NewBodkin()
+
+	err := b.Unify(jsonInput)
+	assert.NoError(t, err)
+
+	err = b.Unify(jsonInput2)
+	assert.NoError(t, err)
+
+	schema, err := b.Schema()
+	assert.NoError(t, err)
+
+	expectedFields := []arrow.Field{
+		{
+			Name:     "array_field",
+			Type:     arrow.ListOf(arrow.PrimitiveTypes.Int64),
+			Nullable: true,
+		},
+		{
+			Name:     "array_field2",
+			Type:     arrow.ListOf(arrow.PrimitiveTypes.Int64),
 			Nullable: true,
 		},
 	}
@@ -152,6 +189,221 @@ func TestSchemaInference_DeeplyNestedMixedTypes(t *testing.T) {
 		},
 	}
 
+	compareSchemas(t, expectedFields, schema.Fields())
+}
+
+func TestUnify_MergeNestedStructFields(t *testing.T) {
+	// Initial JSON data
+	initialData := `{
+        "level1": {
+            "nested_field": {
+                "field1": "value1",
+				"nested_field2": {
+                	"field3": "value1",
+					"nested_field3": {
+						"field5": "value1"
+					}
+            	}
+            }
+        }
+    }`
+
+	// New JSON data with additional nested fields
+	newData := `{
+        "level1": {
+            "nested_field": {
+                "field2": 42,
+				"nested_field2": {
+					"field4": 42,
+					"nested_field3": {
+						"field6": "value1"
+					}
+				}
+            }
+        }
+    }`
+
+	// Create a Bodkin instance
+	b := NewBodkin()
+
+	// Unify the initial data
+	err := b.Unify(initialData)
+	assert.NoError(t, err)
+
+	// Unify the new data
+	err = b.Unify(newData)
+	assert.NoError(t, err)
+
+	// Retrieve the schema
+	schema, err := b.Schema()
+	assert.NoError(t, err)
+	fmt.Printf("Schema after merging:\n%s\n", schema.String())
+	// Define the expected schema
+	expectedFields := []arrow.Field{
+		{
+			Name: "level1",
+			Type: arrow.StructOf(
+				arrow.Field{
+					Name: "nested_field",
+					Type: arrow.StructOf(
+						arrow.Field{Name: "field1", Type: arrow.BinaryTypes.String, Nullable: true},
+						arrow.Field{Name: "field2", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+						arrow.Field{
+							Name: "nested_field2",
+							Type: arrow.StructOf(
+								arrow.Field{Name: "field3", Type: arrow.BinaryTypes.String, Nullable: true},
+								arrow.Field{Name: "field4", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+								arrow.Field{
+									Name: "nested_field3",
+									Type: arrow.StructOf(
+										arrow.Field{Name: "field5", Type: arrow.BinaryTypes.String, Nullable: true},
+										arrow.Field{Name: "field6", Type: arrow.BinaryTypes.String, Nullable: true},
+									),
+									Nullable: true,
+								},
+							),
+							Nullable: true,
+						},
+					),
+					Nullable: true,
+				},
+			),
+			Nullable: true,
+		},
+	}
+
+	// Validate the schema
+	compareSchemas(t, expectedFields, schema.Fields())
+}
+
+func TestUnify_MergeNestedListStructFields(t *testing.T) {
+	// Initial JSON data
+	initialData := `{
+        "level1": {
+            "nested_field": {
+                "field1": "value1",
+				"list_field": [
+					{
+						"nested_field2": {
+							"field3": "value1",
+							"nested_field3": {
+								"field5": "value1"
+							}
+						}	
+				}
+				]
+            }
+        }
+    }`
+
+	// New JSON data with additional nested fields
+	newData := `{
+        "level1": {
+            "nested_field": {
+                "field2": 42,
+				"list_field": [
+					{
+						"nested_field2": {
+							"field4": 42,
+							"nested_field3": {
+								"field6": "value1"
+							}
+						}
+					}
+					
+				]
+            }
+        }
+    }`
+
+	// Create a Bodkin instance
+	b := NewBodkin()
+
+	// Unify the initial data
+	err := b.Unify(initialData)
+	assert.NoError(t, err)
+
+	// Unify the new data
+	err = b.Unify(newData)
+	assert.NoError(t, err)
+
+	// Retrieve the schema
+	schema, err := b.Schema()
+	assert.NoError(t, err)
+	fmt.Printf("Schema after merging:\n%s\n", schema.String())
+	// Define the expected schema
+	expectedFields := []arrow.Field{
+		{
+			Name: "level1",
+			Type: arrow.StructOf(
+				arrow.Field{
+					Name: "nested_field",
+					Type: arrow.StructOf(
+						arrow.Field{Name: "field1", Type: arrow.BinaryTypes.String, Nullable: true},
+						arrow.Field{Name: "field2", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+						arrow.Field{
+							Name: "list_field",
+							Type: arrow.ListOf(
+								arrow.StructOf(
+									arrow.Field{Name: "nested_field2", Type: arrow.StructOf(
+										arrow.Field{Name: "field3", Type: arrow.BinaryTypes.String, Nullable: true},
+										arrow.Field{Name: "field4", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+										arrow.Field{
+											Name: "nested_field3",
+											Type: arrow.StructOf(
+												arrow.Field{Name: "field5", Type: arrow.BinaryTypes.String, Nullable: true},
+												arrow.Field{Name: "field6", Type: arrow.BinaryTypes.String, Nullable: true},
+											),
+											Nullable: true,
+										},
+									), Nullable: true},
+								),
+							),
+							Nullable: true,
+						},
+					),
+					Nullable: true,
+				},
+			),
+			Nullable: true,
+		},
+	}
+
+	// Validate the schema
+	compareSchemas(t, expectedFields, schema.Fields())
+}
+
+func TestSchemaInference_Matrix(t *testing.T) {
+	jsonInput := `{
+        "matrix": [
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9]
+        ]
+    }`
+
+	b := NewBodkin()
+
+	// Unify the JSON input
+	err := b.Unify(jsonInput)
+	assert.NoError(t, err)
+
+	// Retrieve the schema
+	schema, err := b.Schema()
+	assert.NoError(t, err)
+
+	// Define the expected schema
+	expectedFields := []arrow.Field{
+		{
+			Name: "matrix",
+			Type: arrow.ListOf(
+				arrow.ListOf(arrow.PrimitiveTypes.Int64),
+			),
+			Nullable: true,
+		},
+	}
+
+	// Validate the schema
 	compareSchemas(t, expectedFields, schema.Fields())
 }
 

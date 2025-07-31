@@ -203,6 +203,22 @@ func (f *fieldPos) getValue(m map[string]any) any {
 	return value
 }
 
+func (f *fieldPos) graftField() {
+	if f.field.Type.ID() == arrow.STRUCT {
+		var fields []arrow.Field
+		for _, c := range f.children {
+			fields = append(fields, c.field)
+		}
+		f.field = arrow.Field{Name: f.name, Type: arrow.StructOf(fields...), Nullable: true}
+	}
+	if (f.parent != nil) && f.parent.field.Type.ID() == arrow.LIST {
+		f.parent.field = arrow.Field{Name: f.parent.name, Type: arrow.ListOf(f.field.Type.(*arrow.StructType)), Nullable: true}
+	}
+	if f.parent != nil {
+		f.parent.graftField()
+	}
+}
+
 // graft grafts a new field into the schema tree
 func (f *fieldPos) graft(n *fieldPos) {
 	graft := f.newChild(n.name)
@@ -211,18 +227,17 @@ func (f *fieldPos) graft(n *fieldPos) {
 	graft.children = append(graft.children, n.children...)
 	graft.mapChildren()
 	f.assignChild(graft)
-	f.owner.knownFields.Set(graft.dotPath(), graft)
-	f.owner.untypedFields.Delete(graft.dotPath())
 	f.owner.changes = errors.Join(f.owner.changes, fmt.Errorf("%w %v : %v", ErrFieldAdded, graft.dotPath(), graft.field.Type.String()))
+	// TODO recurse up the field tree to update parent fields
 	if f.field.Type.ID() == arrow.STRUCT {
 		gf := f.field.Type.(*arrow.StructType)
 		var nf []arrow.Field
 		nf = append(nf, gf.Fields()...)
 		nf = append(nf, graft.field)
 		f.field = arrow.Field{Name: f.name, Type: arrow.StructOf(nf...), Nullable: true}
-		if (f.parent != nil) && f.parent.field.Type.ID() == arrow.LIST {
-			f.parent.field = arrow.Field{Name: f.parent.name, Type: arrow.ListOf(f.field.Type.(*arrow.StructType)), Nullable: true}
-		}
+	}
+	if f.parent != nil {
+		f.parent.graftField()
 	}
 }
 

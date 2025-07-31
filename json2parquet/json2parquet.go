@@ -50,8 +50,8 @@ func RecordsFromFile(inputFile, outputFile string, schema *arrow.Schema, munger 
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println(err)
-			fmt.Println("Records:", n)
+			// fmt.Printf("recover: %+v\n", r)
+			fmt.Println("Records read before data error:", n)
 		}
 	}()
 	defer f.Close()
