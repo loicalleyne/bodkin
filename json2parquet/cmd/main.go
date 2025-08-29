@@ -69,7 +69,7 @@ func main() {
 		n, err = j2p.RecordsFromFile(*inputFile, *outputFile, arrowSchema, nil)
 		log.Printf("%d records written", n)
 		if err != nil {
-			log.Printf("parquet error: %v", err)
+			log.Printf("data processing error: %v", err)
 		}
 	}
 }

@@ -211,9 +211,10 @@ func (f *fieldPos) graftField() {
 		}
 		f.field = arrow.Field{Name: f.name, Type: arrow.StructOf(fields...), Nullable: true}
 	}
-	if (f.parent != nil) && f.parent.field.Type.ID() == arrow.LIST {
-		f.parent.field = arrow.Field{Name: f.parent.name, Type: arrow.ListOf(f.field.Type.(*arrow.StructType)), Nullable: true}
+	if f.field.Type.ID() == arrow.LIST {
+		f.field = arrow.Field{Name: f.name, Type: arrow.ListOf(f.children[0].field.Type), Nullable: true}
 	}
+
 	if f.parent != nil {
 		f.parent.graftField()
 	}
@@ -228,7 +229,7 @@ func (f *fieldPos) graft(n *fieldPos) {
 	graft.mapChildren()
 	f.assignChild(graft)
 	f.owner.changes = errors.Join(f.owner.changes, fmt.Errorf("%w %v : %v", ErrFieldAdded, graft.dotPath(), graft.field.Type.String()))
-	// TODO recurse up the field tree to update parent fields
+
 	if f.field.Type.ID() == arrow.STRUCT {
 		gf := f.field.Type.(*arrow.StructType)
 		var nf []arrow.Field
@@ -236,6 +237,7 @@ func (f *fieldPos) graft(n *fieldPos) {
 		nf = append(nf, graft.field)
 		f.field = arrow.Field{Name: f.name, Type: arrow.StructOf(nf...), Nullable: true}
 	}
+	// recurse up the field tree to update parent fields
 	if f.parent != nil {
 		f.parent.graftField()
 	}

@@ -25,10 +25,11 @@ go.work.sum
 .env
 
 internal
-avro
+_avro
 pochard
 experiments
 map.go
 *.schema
 *.pgo
 debug
+reader/avro.go

@@ -1,7 +1,6 @@
 package bodkin
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -237,7 +236,7 @@ func TestUnify_MergeNestedStructFields(t *testing.T) {
 	// Retrieve the schema
 	schema, err := b.Schema()
 	assert.NoError(t, err)
-	fmt.Printf("Schema after merging:\n%s\n", schema.String())
+
 	// Define the expected schema
 	expectedFields := []arrow.Field{
 		{
@@ -267,6 +266,68 @@ func TestUnify_MergeNestedStructFields(t *testing.T) {
 					),
 					Nullable: true,
 				},
+			),
+			Nullable: true,
+		},
+	}
+
+	// Validate the schema
+	compareSchemas(t, expectedFields, schema.Fields())
+}
+
+func TestUnify_MergeListStructFields(t *testing.T) {
+	// Initial JSON data
+	initialData := `{
+		"list_field": [
+			{
+				"nested_field": {
+					"field1": "value1"
+				}
+			}
+		]
+	}`
+
+	// New JSON data with additional nested fields
+	newData := `{
+		"list_field": [
+			{
+				"nested_field": {
+					"field2": 42
+				}
+			}
+		]
+	}`
+
+	// Create a Bodkin instance
+	b := NewBodkin()
+
+	// Unify the initial data
+	err := b.Unify(initialData)
+	assert.NoError(t, err)
+
+	// Unify the new data
+	err = b.Unify(newData)
+	assert.NoError(t, err)
+
+	// Retrieve the schema
+	schema, err := b.Schema()
+	assert.NoError(t, err)
+
+	// Define the expected schema
+	expectedFields := []arrow.Field{
+		{
+			Name: "list_field",
+			Type: arrow.ListOf(
+				arrow.StructOf(
+					arrow.Field{
+						Name: "nested_field",
+						Type: arrow.StructOf(
+							arrow.Field{Name: "field1", Type: arrow.BinaryTypes.String, Nullable: true},
+							arrow.Field{Name: "field2", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+						),
+						Nullable: true,
+					},
+				),
 			),
 			Nullable: true,
 		},
@@ -330,7 +391,7 @@ func TestUnify_MergeNestedListStructFields(t *testing.T) {
 	// Retrieve the schema
 	schema, err := b.Schema()
 	assert.NoError(t, err)
-	fmt.Printf("Schema after merging:\n%s\n", schema.String())
+
 	// Define the expected schema
 	expectedFields := []arrow.Field{
 		{
