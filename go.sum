@@ -114,8 +114,8 @@ github.com/quipo/dependencysolver v0.0.0-20170801134659-2b009cb4ddcc h1:hK577yxE
 github.com/quipo/dependencysolver v0.0.0-20170801134659-2b009cb4ddcc/go.mod h1:OQt6Zo5B3Zs+C49xul8kcHo+fZ1mCLPvd0LFxiZ2DHc=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 h1:N/ElC8H3+5XpJzTSTfLsJV/mx9Q9g7kxmchpfZyxgzM=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
-github.com/redpanda-data/benthos/v4 v4.57.0 h1:oxhKhB/Ha5MJQEDhITs5yE8vvofvjW5aU/+yhClgAWU=
-github.com/redpanda-data/benthos/v4 v4.57.0/go.mod h1:NQBR+ek5JR3QICSV9S3UNcj9z/0Mww2+/1JkKt/3Ino=
+github.com/redpanda-data/benthos/v4 v4.57.1 h1:XEHeqON8UIpqUeDBwaMmYFtjhiIphJgCRLy91IqNW8w=
+github.com/redpanda-data/benthos/v4 v4.57.1/go.mod h1:i6bHXMyFLykvGzyVC0ekoRMDM3zfVOSeh+GWwqfp0mU=
 github.com/rickb777/period v1.0.15 h1:nWR4rgCtImT0CXw5kAsjHv+ExCEFt/18zAySOi7pWI8=
 github.com/rickb777/period v1.0.15/go.mod h1:3lWluyeZEk6n1jfLCPG4dH3C0N3NxjmYL4Dmcxip3es=
 github.com/rickb777/plural v1.4.4 h1:OpZU8uRr9P2NkYAbkLMwlKNVJyJ5HvRcRBFyXGJtKGI=
