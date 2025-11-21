@@ -4,8 +4,8 @@ github.com/Jeffail/gabs/v2 v2.7.0 h1:Y2edYaTcE8ZpRsR2AtmPu5xQdFDIthFG0jYhu5PY8kg
 github.com/Jeffail/gabs/v2 v2.7.0/go.mod h1:dp5ocw1FvBBQYssgHsG7I1WYsiLRtkUaB1FEtSwvNUw=
 github.com/Jeffail/grok v1.1.0 h1:kiHmZ+0J5w/XUihRgU3DY9WIxKrNQCDjnfAb6bMLFaE=
 github.com/Jeffail/grok v1.1.0/go.mod h1:dm0hLksrDwOMa6To7ORXCuLbuNtASIZTfYheavLpsuE=
-github.com/Jeffail/shutdown v1.0.0 h1:afYjnY4pksqP/012m3NGJVccDI+WATdSzIMVHZKU8/Y=
-github.com/Jeffail/shutdown v1.0.0/go.mod h1:5dT4Y1oe60SJELCkmAB1pr9uQyHBhh6cwDLQTfmuO5U=
+github.com/Jeffail/shutdown v1.1.0 h1:5Bm3llKt0hnRjmTUlxgBnFg/snFfwqTOUMp3So8jCLo=
+github.com/Jeffail/shutdown v1.1.0/go.mod h1:5dT4Y1oe60SJELCkmAB1pr9uQyHBhh6cwDLQTfmuO5U=
 github.com/OneOfOne/xxhash v1.2.8 h1:31czK/TI9sNkxIKfaUfGlU47BAxQ0ztGgd9vPyqimf8=
 github.com/OneOfOne/xxhash v1.2.8/go.mod h1:eZbhyaAYD41SGSSsnmcpxVoRiQ/MPUTjUdIIOT9Um7Q=
 github.com/andybalholm/brotli v1.2.0 h1:ukwgCxwYrmACq68yiUqwIWnGY0cTPox/M94sVwToPjQ=
@@ -114,8 +114,8 @@ github.com/quipo/dependencysolver v0.0.0-20170801134659-2b009cb4ddcc h1:hK577yxE
 github.com/quipo/dependencysolver v0.0.0-20170801134659-2b009cb4ddcc/go.mod h1:OQt6Zo5B3Zs+C49xul8kcHo+fZ1mCLPvd0LFxiZ2DHc=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 h1:N/ElC8H3+5XpJzTSTfLsJV/mx9Q9g7kxmchpfZyxgzM=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
-github.com/redpanda-data/benthos/v4 v4.60.0 h1:TCX2cFUOL3trbiYcVSIGbwnHRXtHBoM3qe+mK21a44A=
-github.com/redpanda-data/benthos/v4 v4.60.0/go.mod h1:OEs66BtOML3fsro4MFgrUuYXChObrWzG8fPJ7RJ37E4=
+github.com/redpanda-data/benthos/v4 v4.61.0 h1:0EOm9U2d+T+JEgSwHLKNOKc4klgiUgJ48xGg+FEehAA=
+github.com/redpanda-data/benthos/v4 v4.61.0/go.mod h1:J1tI89/1363t9mEIz9sRHL1aNQBKOVk7O2GODKCgsOQ=
 github.com/rickb777/period v1.0.15 h1:nWR4rgCtImT0CXw5kAsjHv+ExCEFt/18zAySOi7pWI8=
 github.com/rickb777/period v1.0.15/go.mod h1:3lWluyeZEk6n1jfLCPG4dH3C0N3NxjmYL4Dmcxip3es=
 github.com/rickb777/plural v1.4.4 h1:OpZU8uRr9P2NkYAbkLMwlKNVJyJ5HvRcRBFyXGJtKGI=
