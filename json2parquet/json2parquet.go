@@ -86,7 +86,7 @@ func RecordsFromFile(inputFile, outputFile string, schema *arrow.Schema, munger 
 	defer rdr.Release()
 
 	for rdr.Next() {
-		rec := rdr.Record()
+		rec := rdr.RecordBatch()
 		err1 := pw.WriteRecord(rec)
 		if err != nil {
 			err = errors.Join(err, fmt.Errorf("failed to write parquet record: %v", err1))
